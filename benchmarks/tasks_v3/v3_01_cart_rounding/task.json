@@ -1,0 +1,21 @@
+{
+  "id": "v3_01_cart_rounding",
+  "difficulty": "subtle",
+  "prompt": "line_total() is off by a cent on discounted lines. Fix it.",
+  "tier": "v3",
+  "modules": [
+    "cart.py",
+    "money.py",
+    "pricing.py"
+  ],
+  "visible_tests": "test_src.py",
+  "hidden_tests": "test_hidden.py",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py",
+    "test_hidden.py"
+  ]
+}

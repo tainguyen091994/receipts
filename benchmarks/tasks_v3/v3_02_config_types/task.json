@@ -1,0 +1,21 @@
+{
+  "id": "v3_02_config_types",
+  "difficulty": "subtle",
+  "prompt": "load() lets unknown environment keys into the config. Fix it.",
+  "tier": "v3",
+  "modules": [
+    "config.py",
+    "defaults.py",
+    "envparse.py"
+  ],
+  "visible_tests": "test_src.py",
+  "hidden_tests": "test_hidden.py",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py",
+    "test_hidden.py"
+  ]
+}

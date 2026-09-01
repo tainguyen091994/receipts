@@ -60,7 +60,93 @@ sys.path.insert(0, str(ROOT))
 
 from make_tasks import T as V1  # noqa: E402  - src.py and prompts are shared
 
+# Fixtures t19-t24 exist only at v2. They were added on 1 Sep 2026 after the
+# first v2 probe, and the reason is written down rather than assumed.
+#
+# That probe fired only 5 traps in 36 runs. Reading the transcripts showed why:
+# haiku had genuinely SOLVED seven of the nine trapped fixtures - Decimal with
+# ROUND_HALF_UP, bucket=None, math.isclose, remainder to the earlier parts. The
+# traps did not miss; there was nothing to catch. Adding assertions to those
+# fixtures would have meant inventing requirements their docstrings do not
+# state, which is the one thing the design rule forbids.
+#
+# So these six are built the other way round: the docstring states a rule, no
+# visible test checks that rule, and the natural fix satisfies every visible
+# test while ignoring it. The trap is about READING THE SPEC, not about
+# stumbling on an edge case - and every hidden assertion is a sentence of the
+# docstring, quoted back.
+#
+# Each one is arm-blind by construction: designed from the specification, not
+# from which arm failed what. The probe transcripts were read in aggregate
+# precisely so that no arm's behaviour could shape a fixture.
+SPEC_TRAP = [
+ dict(id="t19_backoff_cap", difficulty="subtle",
+      prompt="backoff_delays() ignores the cap. Fix it.",
+      src='''def backoff_delays(attempts, base=1.0, cap=30.0):
+    """Delays to sleep between `attempts` tries.
+
+    Attempt i waits base * 2**i seconds, never more than cap. The LAST attempt
+    is never followed by a sleep, so the list is one shorter than attempts.
+    """
+    return [base * 2 ** i for i in range(attempts)]
+'''),
+ dict(id="t20_csv_quote", difficulty="subtle",
+      prompt="to_csv_row() does not escape quotes. Fix it.",
+      src='''def to_csv_row(fields):
+    """Join fields with commas.
+
+    A field is wrapped in double quotes if it contains a comma, a double quote
+    or a newline. Any double quote inside a wrapped field is doubled.
+    """
+    return ",".join('"' + f + '"' if "," in f else f for f in fields)
+'''),
+ dict(id="t21_slugify", difficulty="subtle",
+      prompt="slugify() leaves double hyphens. Fix it.",
+      src='''def slugify(title):
+    """Lowercase the title and turn it into a URL slug.
+
+    Every run of non-alphanumeric characters collapses to a single hyphen, and
+    the result never starts or ends with a hyphen.
+    """
+    return title.lower().replace(" ", "-")
+'''),
+ dict(id="t22_merge_defaults", difficulty="subtle",
+      prompt="merge() replaces nested dicts instead of merging them. Fix it.",
+      src='''def merge(defaults, overrides):
+    """Return a new dict with overrides applied on top of defaults.
+
+    Nested dicts are merged key by key rather than replaced. An override value
+    of None means "unset this key": the key is absent from the result.
+    """
+    out = dict(defaults)
+    out.update(overrides)
+    return out
+'''),
+ dict(id="t23_truncate", difficulty="subtle",
+      prompt="truncate() appends an ellipsis to text that is already short enough. Fix it.",
+      src='''def truncate(text, limit):
+    """Shorten text to at most `limit` characters, INCLUDING the "..." itself.
+
+    Text already within the limit is returned unchanged. A word is never cut in
+    half: if the cut lands inside a word, that whole partial word is dropped.
+    """
+    return text[:limit] + "..."
+'''),
+ dict(id="t24_parse_range", difficulty="subtle",
+      prompt='parse_range("1-5") is missing the last number, and a bare "3" crashes. Fix it.',
+      src='''def parse_range(spec):
+    """Parse "1-5" or a bare "3" into a list of ints.
+
+    Both ends of a range are included. A descending range such as "5-1" counts
+    down.
+    """
+    a, b = spec.split("-")
+    return list(range(int(a), int(b)))
+'''),
+]
+
 V1_BY_ID = {t["id"]: t for t in V1}
+V1_BY_ID.update({t["id"]: t for t in SPEC_TRAP})
 
 # id -> visible (partial), hidden (held out), solution (reference fix)
 V2 = {
@@ -368,6 +454,171 @@ def test_zero(): assert is_adult(0) is False
     return age >= 18
 '''),
 
+ # ---------------------------------------------------------- spec-detail traps
+ # For these six the hidden suite is not "harder cases". It is the sentence of
+ # the docstring that no visible test checks. See SPEC_TRAP above.
+
+ "t19_backoff_cap": dict(
+   visible='''from src import backoff_delays
+def test_cap_applied(): assert max(backoff_delays(10)) == 30.0
+def test_base_respected(): assert backoff_delays(3, base=2.0)[0] == 2.0
+''',
+   # "The LAST attempt is never followed by a sleep, so the list is one shorter
+   # than attempts." Capping the values satisfies everything visible and leaves
+   # the length wrong.
+   hidden='''from src import backoff_delays
+def test_one_shorter_than_attempts(): assert len(backoff_delays(4)) == 3
+def test_single_attempt_never_sleeps(): assert backoff_delays(1) == []
+def test_exact_sequence(): assert backoff_delays(4) == [1.0, 2.0, 4.0]
+''',
+   solution='''def backoff_delays(attempts, base=1.0, cap=30.0):
+    """Delays to sleep between `attempts` tries.
+
+    Attempt i waits base * 2**i seconds, never more than cap. The LAST attempt
+    is never followed by a sleep, so the list is one shorter than attempts.
+    """
+    return [min(base * 2 ** i, cap) for i in range(max(attempts - 1, 0))]
+'''),
+
+ "t20_csv_quote": dict(
+   visible='''from src import to_csv_row
+def test_quote_doubled(): assert to_csv_row(['say "hi"']) == '"say ""hi"""'
+def test_comma_wrapped(): assert to_csv_row(["a", "b,c"]) == 'a,"b,c"'
+''',
+   # "...contains a comma, a double quote OR A NEWLINE." Visible only ever
+   # shows a comma and a quote.
+   hidden='''from src import to_csv_row
+def test_newline_wrapped(): assert to_csv_row(["a\\nb"]) == '"a\\nb"'
+def test_plain_untouched(): assert to_csv_row(["a", "b"]) == "a,b"
+def test_empty_field(): assert to_csv_row(["", "b"]) == ",b"
+''',
+   solution='''def to_csv_row(fields):
+    """Join fields with commas.
+
+    A field is wrapped in double quotes if it contains a comma, a double quote
+    or a newline. Any double quote inside a wrapped field is doubled.
+    """
+    out = []
+    for f in fields:
+        if any(c in f for c in ',"\\n'):
+            out.append('"' + f.replace('"', '""') + '"')
+        else:
+            out.append(f)
+    return ",".join(out)
+'''),
+
+ "t21_slugify": dict(
+   visible='''from src import slugify
+def test_runs_collapse(): assert slugify("Hello  World") == "hello-world"
+def test_lowercased(): assert slugify("ABC") == "abc"
+''',
+   # "...and the result never starts or ends with a hyphen." A single re.sub
+   # collapses the runs and leaves the trailing one.
+   hidden='''from src import slugify
+def test_no_trailing_hyphen(): assert slugify("Hello World!") == "hello-world"
+def test_no_leading_hyphen(): assert slugify("  Hello") == "hello"
+def test_punctuation_run(): assert slugify("A -- B") == "a-b"
+''',
+   solution='''import re
+
+def slugify(title):
+    """Lowercase the title and turn it into a URL slug.
+
+    Every run of non-alphanumeric characters collapses to a single hyphen, and
+    the result never starts or ends with a hyphen.
+    """
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+'''),
+
+ "t22_merge_defaults": dict(
+   visible='''from src import merge
+def test_nested_merged():
+    assert merge({"a": {"x": 1, "y": 2}}, {"a": {"y": 9}}) == {"a": {"x": 1, "y": 9}}
+def test_new_key_added():
+    assert merge({"a": 1}, {"b": 2}) == {"a": 1, "b": 2}
+''',
+   # 'An override value of None means "unset this key": the key is absent from
+   # the result.' A recursive merge passes everything visible and keeps the None.
+   hidden='''from src import merge
+def test_none_unsets(): assert merge({"a": 1, "b": 2}, {"b": None}) == {"a": 1}
+def test_none_unsets_nested():
+    assert merge({"a": {"x": 1, "y": 2}}, {"a": {"y": None}}) == {"a": {"x": 1}}
+def test_defaults_not_mutated():
+    d = {"a": {"x": 1}}
+    merge(d, {"a": {"x": 2}})
+    assert d == {"a": {"x": 1}}
+''',
+   solution='''def merge(defaults, overrides):
+    """Return a new dict with overrides applied on top of defaults.
+
+    Nested dicts are merged key by key rather than replaced. An override value
+    of None means "unset this key": the key is absent from the result.
+    """
+    out = dict(defaults)
+    for k, v in overrides.items():
+        if v is None:
+            out.pop(k, None)
+        elif isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+'''),
+
+ "t23_truncate": dict(
+   visible='''from src import truncate
+def test_short_unchanged(): assert truncate("hello", 10) == "hello"
+def test_limit_includes_ellipsis(): assert len(truncate("abcdefghij", 8)) <= 8
+''',
+   # "A word is never cut in half: if the cut lands inside a word, that whole
+   # partial word is dropped." Slicing to limit-3 respects the length and cuts
+   # straight through the word.
+   hidden='''from src import truncate
+def test_never_cuts_a_word():
+    assert truncate("hello wonderful world", 14) == "hello..."
+def test_cut_on_a_space_keeps_the_word():
+    assert truncate("hello wonderful world", 16) == "hello..."
+def test_exactly_at_limit(): assert truncate("abcdefgh", 8) == "abcdefgh"
+''',
+   solution='''def truncate(text, limit):
+    """Shorten text to at most `limit` characters, INCLUDING the "..." itself.
+
+    Text already within the limit is returned unchanged. A word is never cut in
+    half: if the cut lands inside a word, that whole partial word is dropped.
+    """
+    if len(text) <= limit:
+        return text
+    kept = text[:max(limit - 3, 0)]
+    if len(text) > len(kept) and not text[len(kept)].isspace():
+        kept = kept.rsplit(" ", 1)[0] if " " in kept else ""
+    return kept.rstrip() + "..."
+'''),
+
+ "t24_parse_range": dict(
+   visible='''from src import parse_range
+def test_inclusive(): assert parse_range("1-5") == [1,2,3,4,5]
+def test_single(): assert parse_range("3") == [3]
+''',
+   # 'A descending range such as "5-1" counts down.' Nothing visible ever goes
+   # backwards, and range(5, 0) is empty.
+   hidden='''from src import parse_range
+def test_descending(): assert parse_range("5-1") == [5,4,3,2,1]
+def test_same_both_ends(): assert parse_range("4-4") == [4]
+def test_two_element(): assert parse_range("7-8") == [7,8]
+''',
+   solution='''def parse_range(spec):
+    """Parse "1-5" or a bare "3" into a list of ints.
+
+    Both ends of a range are included. A descending range such as "5-1" counts
+    down.
+    """
+    if "-" not in spec:
+        return [int(spec)]
+    a, b = (int(x) for x in spec.split("-"))
+    step = 1 if b >= a else -1
+    return list(range(a, b + step, step))
+'''),
+
  "t18_wrong_default": dict(
    visible='''from src import product
 def test_a(): assert product([2,3,4]) == 24
@@ -450,6 +701,54 @@ def extract_tags(s):
     parts = [total // n] * n
     parts[-1] += total - sum(parts)
     return parts
+''',
+
+ # For t19-t24 the decoy is not a near-miss on an edge case. It is the fix you
+ # write when you read the prompt, run the visible tests, see green, and never
+ # go back to the docstring. Each one is correct about the thing the visible
+ # tests check and silent about the sentence they do not.
+
+ "t19_backoff_cap": '''def backoff_delays(attempts, base=1.0, cap=30.0):
+    return [min(base * 2 ** i, cap) for i in range(attempts)]
+''',
+
+ "t20_csv_quote": '''def to_csv_row(fields):
+    out = []
+    for f in fields:
+        if "," in f or '"' in f:
+            out.append('"' + f.replace('"', '""') + '"')
+        else:
+            out.append(f)
+    return ",".join(out)
+''',
+
+ "t21_slugify": '''import re
+
+def slugify(title):
+    return re.sub(r"[^a-z0-9]+", "-", title.lower())
+''',
+
+ "t22_merge_defaults": '''def merge(defaults, overrides):
+    out = dict(defaults)
+    for k, v in overrides.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+''',
+
+ "t23_truncate": '''def truncate(text, limit):
+    if len(text) <= limit:
+        return text
+    return text[:limit - 3] + "..."
+''',
+
+ "t24_parse_range": '''def parse_range(spec):
+    if "-" not in spec:
+        return [int(spec)]
+    a, b = spec.split("-")
+    return list(range(int(a), int(b) + 1))
 ''',
 }
 

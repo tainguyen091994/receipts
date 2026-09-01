@@ -1,0 +1,21 @@
+{
+  "id": "v3_04_paging_meta",
+  "difficulty": "subtle",
+  "prompt": "list_users() returns the wrong page of users. Fix it.",
+  "tier": "v3",
+  "modules": [
+    "api.py",
+    "meta.py",
+    "page.py"
+  ],
+  "visible_tests": "test_src.py",
+  "hidden_tests": "test_hidden.py",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py",
+    "test_hidden.py"
+  ]
+}
