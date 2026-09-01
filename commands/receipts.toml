@@ -1,0 +1,13 @@
+description = "Demand the receipt for the claim you are about to make."
+prompt = """
+Apply the six questions to your most recent claim, or to $ARGUMENTS if given.
+
+1. What would prove me wrong? Name the observation.
+2. Did I run it - this session, right now?
+3. Can I paste the real output?
+4. Does that output say what I said?
+5. Could that check have failed if I were wrong?
+6. If any answer is no: state what changed, then what is UNVERIFIED.
+
+Do not manufacture doubt. If it passed, say so plainly and stop.
+"""

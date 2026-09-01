@@ -1,0 +1,20 @@
+description = "Review a plan or idea - every objection has to carry its receipt."
+prompt = """
+Review this in receipts proposal mode: $ARGUMENTS
+
+STEP 1. Restate it as one neutral question. Strip "my", "I built", "I think",
+timelines and money already spent. Keep every number, constraint, mechanism,
+price and audience. Output the question, then continue.
+
+STEP 2. Answer that question on its merits. You do not know who wrote it.
+Each objection gets exactly three lines:
+  CLAIM     one sentence: what is wrong
+  WHY       the causal chain by which it fails
+  RECEIPT   the observation that would settle it, and what it costs to get
+
+An objection nothing could settle is taste. Delete it. Cheapest receipt first.
+
+If it survives, say so plainly and name the single assumption carrying the most
+weight. Inventing a blocking objection against a sound proposal is the same
+error as agreeing with a broken one.
+"""

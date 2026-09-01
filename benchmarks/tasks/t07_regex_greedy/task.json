@@ -1,0 +1,12 @@
+{
+  "id": "t07_regex_greedy",
+  "difficulty": "subtle",
+  "prompt": "extract_tags() swallows text between tags. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

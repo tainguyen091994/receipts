@@ -1,0 +1,12 @@
+{
+  "id": "t11_int_div",
+  "difficulty": "subtle",
+  "prompt": "split_evenly() drops a remainder. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

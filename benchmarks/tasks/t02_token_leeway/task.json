@@ -1,0 +1,12 @@
+{
+  "id": "t02_token_leeway",
+  "difficulty": "subtle",
+  "prompt": "test_expired_token fails. Fix the expiry check.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t09_float_eq",
+  "difficulty": "subtle",
+  "prompt": "is_balanced() reports false for sums that are equal. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t15_missing_abs",
+  "difficulty": "easy",
+  "prompt": "distance() returns negative numbers. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t03_money_round",
+  "difficulty": "subtle",
+  "prompt": "Totals are one cent off on some orders. Fix round_money().",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

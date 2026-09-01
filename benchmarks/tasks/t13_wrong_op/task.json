@@ -1,0 +1,12 @@
+{
+  "id": "t13_wrong_op",
+  "difficulty": "easy",
+  "prompt": "net_total() adds the discount instead of subtracting it. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t10_shallow_copy",
+  "difficulty": "subtle",
+  "prompt": "with_tag() mutates the caller's config. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

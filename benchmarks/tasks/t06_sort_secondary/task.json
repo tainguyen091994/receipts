@@ -1,0 +1,12 @@
+{
+  "id": "t06_sort_secondary",
+  "difficulty": "subtle",
+  "prompt": "rank() loses the tie-break order. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

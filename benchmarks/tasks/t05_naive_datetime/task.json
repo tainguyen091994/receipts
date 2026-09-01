@@ -1,0 +1,12 @@
+{
+  "id": "t05_naive_datetime",
+  "difficulty": "subtle",
+  "prompt": "is_stale() crashes on timezone-aware timestamps. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

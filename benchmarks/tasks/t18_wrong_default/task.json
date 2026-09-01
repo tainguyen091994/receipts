@@ -1,0 +1,12 @@
+{
+  "id": "t18_wrong_default",
+  "difficulty": "easy",
+  "prompt": "product() returns 0 for every input. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

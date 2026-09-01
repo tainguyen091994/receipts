@@ -1,0 +1,12 @@
+{
+  "id": "t01_pagination",
+  "difficulty": "subtle",
+  "prompt": "page_items() returns the wrong slice for page 2. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

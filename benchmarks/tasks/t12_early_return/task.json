@@ -1,0 +1,12 @@
+{
+  "id": "t12_early_return",
+  "difficulty": "subtle",
+  "prompt": "find_all_errors() only ever returns one item. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

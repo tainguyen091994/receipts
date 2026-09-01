@@ -1,0 +1,12 @@
+{
+  "id": "t16_range_end",
+  "difficulty": "easy",
+  "prompt": "countdown() misses the last number. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

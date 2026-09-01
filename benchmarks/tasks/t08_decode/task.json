@@ -1,0 +1,12 @@
+{
+  "id": "t08_decode",
+  "difficulty": "subtle",
+  "prompt": "read_label() fails on non-ASCII input. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}

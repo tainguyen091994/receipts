@@ -1,0 +1,12 @@
+{
+  "id": "t04_mutable_default",
+  "difficulty": "subtle",
+  "prompt": "collect() returns results from previous calls. Fix it.",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py"
+  ]
+}
