@@ -3,3 +3,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 .DS_Store
+
+# --dry-run output is fabricated by a stub, not measured. Never commit it.
+benchmarks/runs/dryrun-*
+benchmarks/results/dryrun-*

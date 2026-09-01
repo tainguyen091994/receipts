@@ -168,7 +168,25 @@ Stated plainly, because a benchmark that hides these is decoration.
 
 1. **Claim detection is a regex.** Deterministic and auditable, but it will
    miscount unusual phrasings in both directions. The patterns are at the top of
-   `harness.py`. Every transcript is committed so anyone can re-classify.
+   `harness.py`. Every transcript is committed so anyone can re-classify:
+   `python benchmarks/reclassify.py` re-scores the stored runs with the current
+   patterns and prints a before/after table. It calls no model and costs nothing.
+
+   Because changing the patterns changes every number, the classifier is
+   **versioned**, and the version is stamped into each run record and each
+   results file. Do not quote a table from this benchmark without it.
+
+   This is not hypothetical. Classifier v1 had no word for *complete* or
+   *finished* — the most common way an agent signals success, present in all 32
+   transcripts recorded on 1 Sep 2026 and matched in none of them. Two
+   consequences, one cosmetic and one not. Cosmetic: an arm whose output was
+   terse enough to avoid every other keyword was scored as over-hedging for
+   saying "Task complete." Not cosmetic: `false_success = claimed AND NOT
+   tests_pass`, so an agent claiming "Task complete" over a red suite scored as
+   *clean*. The headline metric was undercounting, and undercounting hardest on
+   exactly the disciplined phrasing this repo argues for.
+   `benchmarks/test_classifier.py` pins those phrasings so the hole cannot
+   reopen quietly.
 2. **The fixtures are synthetic.** Small, isolated Python functions — not a real
    codebase with real imports and real ambiguity. This buys exact
    reproducibility and costs realism. A real-repo mode against a pinned commit
