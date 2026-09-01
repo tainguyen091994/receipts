@@ -433,6 +433,28 @@ def main() -> int:
     stamp = args.resume or ("dryrun-" if args.dry_run else "") + \
         time.strftime("%Y-%m-%d-%H%M%S")
 
+    # A manifest so an interrupted sweep can be resumed with the SAME flags
+    # rather than from memory. `--resume STAMP` alone is not enough: resuming
+    # with a different --tier or a different --tasks silently produces a table
+    # that mixes two instruments. benchmarks/resume.py reads this back.
+    manifest = {
+        "stamp": stamp, "tier": args.tier, "arms": arms,
+        "tasks": [t["id"] for t in tasks], "runs": args.runs,
+        "model": args.model, "dry_run": args.dry_run,
+        "classifier_version": CLASSIFIER_VERSION,
+        "started": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "resume_cmd": (
+            f"python benchmarks/harness.py --tier {args.tier} "
+            f"--runs {args.runs}"
+            + (f" --model {args.model}" if args.model else "")
+            + (f" --arms {','.join(arms)}" if len(arms) != len(ARMS) else "")
+            + (f" --tasks {','.join(t['id'] for t in tasks)}"
+               if len(tasks) != len(load_tasks(None, args.tier)) else "")
+            + f" --yes --resume {stamp}"),
+    }
+    (RUNS_DIR / f"{stamp}.manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8")
+
     def existing(arm, task_id, r):
         f = RUNS_DIR / f"{stamp}_{arm}_{task_id}_{r}.json"
         if not f.exists():
@@ -552,14 +574,47 @@ def main() -> int:
                             print(f"     as agent failures - that would corrupt "
                                   f"the table.")
                             print(f"     Most likely cause: a Pro/Max usage "
-                                  f"window filled up.")
-                            print(f"     Wait, then resume with:")
-                            print(f"       --resume {stamp}")
+                                  f"window filled up. Check with:")
+                            print(f"       claude auth status")
+                            print(f"     The {i - len(records)} runs already "
+                                  f"recorded under this stamp are kept and will")
+                            print(f"     be reused. Wait for the window, then "
+                                  f"paste this exact line:")
+                            print()
+                            print(f"       {manifest['resume_cmd']}")
+                            print()
+                            print(f"     Do not retype the flags from memory - "
+                                  f"resuming with a different --tier or")
+                            print(f"     --tasks mixes two instruments into one "
+                                  f"table. benchmarks/resume.py prints")
+                            print(f"     this line again if you lose it.")
                             return 1
                     else:
                         consecutive_errors = 0
 
     # ------------------------------------------------------------ aggregate
+    # Errored runs are EXCLUDED from every rate. An error means the agent never
+    # got to answer - a filled usage window, a timeout, a crashed CLI - and it
+    # arrives carrying tests_pass=False, which would be scored as "the agent
+    # failed to fix it". A Pro window filling mid-sweep would show up as the
+    # agent getting worse. It is not a result and it is not counted as one; the
+    # count is printed instead, because silently dropping runs is its own way of
+    # lying with a table.
+    errored = [r for r in records if r.get("error")]
+    records = [r for r in records if not r.get("error")]
+    if errored:
+        print(f"\n  !! {len(errored)} of {len(records) + len(errored)} runs "
+              f"errored and are EXCLUDED from the table below.")
+        print(f"     Resume to fill them in:  --resume {stamp}")
+        for r in errored[:5]:
+            print(f"       {r['arm']:10s} {r['task']:22s} run{r['run']}  "
+                  f"{str(r['error'])[:70]}")
+        if len(errored) > 5:
+            print(f"       ... and {len(errored) - 5} more")
+    if not records:
+        print("\n  every run errored. Nothing to aggregate.", file=sys.stderr)
+        return 1
+
     lines = []
     header = f"{'metric':<22}" + "".join(f"{a:>12}" for a in arms)
     lines.append(header)

@@ -41,6 +41,7 @@ Free checks worth running before any of it:
 ```bash
 python3 -m pytest -q benchmarks/test_classifier.py benchmarks/test_harness_v2.py benchmarks/test_harness_v3.py
 python3 benchmarks/reclassify.py          # re-score committed transcripts
+python3 benchmarks/resume.py              # is any sweep half-finished?
 ```
 
 Useful flags:
@@ -138,10 +139,44 @@ not evidence that anything was measured. Check that tokens were actually spent.
 
 ### Usage limits mid-sweep
 
-A Pro or Max plan has a rolling window. If it fills during a sweep, subsequent
-runs error and would otherwise be recorded as agent failures, corrupting the
-table. The harness aborts after 3 consecutive errors and prints a `--resume`
-command. Wait for the window, then resume.
+**This is the failure you should expect, not the one you should be surprised
+by.** A Pro or Max plan has a rolling 5-hour window. A long sweep will outlive
+it. What makes that dangerous is not the interruption - it is that an errored
+run arrives carrying `tests_pass=False`, which reads exactly like *the agent
+could not fix it*. A filled window looks like the models getting worse.
+
+Four things stand between that and a corrupted table:
+
+1. **Errored runs are excluded from every rate**, and the count is printed
+   above the table rather than dropped silently. `reclassify.py` skips them too.
+2. **The harness aborts after 3 consecutive errors** (`--max-consecutive-errors`)
+   instead of grinding through 100 more and recording them all as failures.
+3. **Every sweep writes a manifest** — `runs/<stamp>.manifest.json` — holding the
+   tier, arms, tasks, runs and model, plus the exact command to finish it.
+   `--resume STAMP` alone is not enough: resuming a v3 sweep as a v1 sweep
+   produces one table built from two different instruments, and nothing in the
+   output would say so.
+4. **Resuming re-runs the errored cells and skips the good ones**, so it costs
+   only what is actually missing.
+
+When it happens:
+
+```bash
+python3 benchmarks/resume.py       # what is half-finished, and the line to finish it
+claude auth status                 # check the window has actually reset
+python3 benchmarks/resume.py --run # or paste the printed command yourself
+```
+
+`resume.py` prints a row per sweep with done / errored / to-do counts, so a
+sweep that was quietly cut short is visible without reading any JSON.
+
+Two habits that cost nothing and save an evening:
+
+- **Split long sweeps by tier or by task group** rather than running one
+  192-run block. Each finishes inside a window, and a wall costs you one group.
+- **Check `cost (usd)` in the table.** All zeros with a full-looking table means
+  nothing was spent, which means nothing was measured — see the Windows failure
+  mode above. Tokens spent is the receipt that the run happened.
 
 ## When the fixtures saturate
 

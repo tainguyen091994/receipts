@@ -26,7 +26,7 @@ FIELDS = ["claimed_success", "false_success", "over_hedge", "showed_evidence"]
 
 
 def load(dirs: list[pathlib.Path]) -> list[dict]:
-    recs = []
+    recs, skipped = [], []
     for d in dirs:
         for f in sorted(d.glob("*.json")):
             try:
@@ -35,9 +35,18 @@ def load(dirs: list[pathlib.Path]) -> list[dict]:
                 print(f"  skipped (not JSON): {f}", file=sys.stderr)
                 continue
             if "final" not in r:
+                continue          # manifests and other non-run JSON
+            if r.get("error"):
+                # An errored run never got an answer to classify. Counting it
+                # would turn a filled usage window into "the agent failed".
+                skipped.append(f.name)
                 continue
             r["_path"] = f
             recs.append(r)
+    if skipped:
+        print(f"  skipped {len(skipped)} errored run(s): "
+              f"{', '.join(skipped[:3])}"
+              + (" ..." if len(skipped) > 3 else ""), file=sys.stderr)
     return recs
 
 
