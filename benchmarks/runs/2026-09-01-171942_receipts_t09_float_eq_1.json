@@ -45,5 +45,7 @@
   "false_success": false,
   "over_hedge": false,
   "showed_evidence": true,
-  "classifier_version": 2
+  "classifier_version": 3,
+  "hedged_claim": false,
+  "over_hedge_strict": false
 }
