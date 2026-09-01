@@ -215,6 +215,40 @@ Reasoning in full: [`docs/why-not-a-persona.md`](docs/why-not-a-persona.md).
 
 ---
 
+## When the models get better
+
+They will, and it is the first objection worth answering.
+
+A prompt that tells an agent to check its work is a wasting asset. Providers
+train against false claims directly, and each release does more of what the six
+questions ask for without being asked. Treated as a rule, Receipts has a shelf
+life measured in model releases.
+
+Treated as an instrument, it does not. The benchmark measures a property of agent
+behaviour rather than a property of one model generation: whether a claim of
+success survives contact with an exit code. That stays askable for as long as
+agents make claims, and the answer moves with every release - which is the point.
+A rising fix rate and a falling false-success rate across the scoreboard is not
+the benchmark going obsolete. It is the benchmark reporting.
+
+So the durable artifacts here are, in order:
+
+1. **The harness and the fixture corpus** - reusable against any model, any agent
+   and any prompt, including prompts that have nothing to do with this repo.
+2. **The committed transcripts** - a dated record of how specific models actually
+   behaved, which cannot be reconstructed after the fact.
+3. **The skill** - one arm of four, worth keeping for exactly as long as it
+   measurably beats the other three.
+
+If the receipts arm stops beating baseline, that result belongs in the scoreboard,
+not in a drawer. A project that can only publish findings flattering to its own
+skill is the thing this one was written against.
+
+And fixtures that stop discriminating get replaced rather than defended:
+[`benchmarks/README.md`](benchmarks/README.md), "When the fixtures saturate".
+
+---
+
 ## Limitations
 
 - **The table above is a prediction, not a measurement.** No sweep has been

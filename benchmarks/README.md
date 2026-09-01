@@ -114,6 +114,54 @@ runs error and would otherwise be recorded as agent failures, corrupting the
 table. The harness aborts after 3 consecutive errors and prints a `--resume`
 command. Wait for the window, then resume.
 
+## When the fixtures saturate
+
+Every benchmark of this shape has a shelf life. Models improve, the fixtures
+become easy, and the table fills with identical numbers. That is expected. It is
+a signal to raise the bar, not an obituary.
+
+**The trigger is the fix rate.** When nearly every run passes, false-success is
+pinned at zero by construction - an agent cannot claim falsely on a task it never
+fails. At that point the instrument has stopped measuring its target, whatever
+the arms do, and the comparison between arms means nothing.
+
+| tier | workspace | graded against | move here when |
+|---|---|---|---|
+| **v1** | `src.py` + full `test_src.py` | that same suite | current |
+| **v2** | `src.py` + *partial* `test_src.py` | `test_src.py` **plus** a held-out `test_hidden.py`, never copied in | fix rate >= 95% |
+| **v3** | several files with real imports between them | full suite | v2 saturates |
+| **v4** | a real repository at a pinned commit | that project's own suite | v3 saturates |
+
+v2 matters most, and not only because it is harder. In v1 the agent can run the
+entire grader, so it iterates until green; an agent that can always check its own
+work will rarely claim falsely. That is a shrinking target, and it shrinks further
+with every model release.
+
+v2 restores the failure that actually happens at work: *"all tests pass"* - the
+ones it ran - while an edge case it never considered is broken. The careful
+response is to hedge precisely (*"the visible tests pass; I have not verified the
+leeway window"*), which is what the six questions should produce and what a harsh
+persona should overdo. Note which metric that makes central: **over-hedging
+matters more as models improve, not less.**
+
+### The obligation that comes with changing tiers
+
+Changing an instrument that provably cannot measure its target is legitimate.
+Changing an analysis because you dislike a result is not. The only thing
+separating them is whether it was written down before the next run.
+
+So, on every tier change:
+
+1. `PREDICTION.md` is never edited. Not one character.
+2. A new `PREDICTION-N.md` is committed **before** the new instrument is run,
+   stating what the previous tier showed, why it could not measure the target,
+   what changed, and what is now expected - with falsification conditions.
+3. Earlier predictions stay in the repo, unedited, each noting which tier it was
+   filed against.
+
+A prediction that survives a tier change is worth more than one that was never
+tested. A prediction quietly rewritten after the fact is worth nothing.
+
 ## Limitations
 
 Stated plainly, because a benchmark that hides these is decoration.
