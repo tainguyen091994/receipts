@@ -2,15 +2,21 @@
 
 Four arms, eighteen fixtures, and a grader that is a process exit code.
 
-**No full sweep has been run in this repository.** A prediction of what it will
-say was filed before any data existed, with falsification conditions, in
-[`PREDICTION.md`](PREDICTION.md).
+**The full v1 sweep has still not been run**, and `PREDICTION.md` — filed before
+any data existed, with falsification conditions — is still unsettled. Not
+because nobody got to it: because tier v1 saturated on its first real runs. Every
+fixture was fixed in every arm, which pins false-success at zero by arithmetic
+rather than by anything the arms did. Running 288 more of those would buy
+tighter error bars on a metric that cannot move.
 
-Two short verification runs on `haiku` have been executed and their transcripts
-committed under `runs/`, with the tables in `results/`. Neither settles
-`PREDICTION.md`: every fixture was fixed in every arm, which pins false-success
-at zero by arithmetic rather than by anything the arms did. That saturation is
-what [`PREDICTION-2.md`](PREDICTION-2.md) and tier v2 respond to.
+Four sweeps *have* run on `haiku` — 176 runs, all transcripts in `runs/`, all
+tables in `results/`. They are what [`PREDICTION-2.md`](PREDICTION-2.md) and
+[`PREDICTION-3.md`](PREDICTION-3.md) were filed against, and what
+`## When the fixtures saturate` below now reports.
+
+The short version: **tier v3 measures what this repository set out to measure,
+and the answer is not the one the skill was hoping for.** See
+[the scoreboard](#what-the-tiers-actually-measured-1-sep-2026).
 
 ## Run it
 
@@ -162,13 +168,33 @@ Four things stand between that and a corrupted table:
 When it happens:
 
 ```bash
-python3 benchmarks/resume.py       # what is half-finished, and the line to finish it
-claude auth status                 # check the window has actually reset
-python3 benchmarks/resume.py --run # or paste the printed command yourself
+python3 benchmarks/resume.py                      # what is half-finished
+python3 benchmarks/resume.py --check --model haiku # has the window reopened?
+python3 benchmarks/resume.py --run                # finish it
 ```
 
 `resume.py` prints a row per sweep with done / errored / to-do counts, so a
 sweep that was quietly cut short is visible without reading any JSON.
+
+**Do not use `claude auth status` to check the window.** It reports login and
+plan, and answers `subscriptionType: pro` just as happily while every call is
+being refused. This README said to use it, and that was wrong. `--check` spends
+one trivial call, which is the only thing that actually answers the question.
+
+A sweep that started before manifests existed — or before you thought to keep
+the flags — is not lost. `--adopt` reconstructs tier, arms, tasks and repeats
+from the run files on disk:
+
+```bash
+python3 benchmarks/resume.py --adopt 2026-09-01-213548 --model haiku
+```
+
+The model is the one thing it asks for, because older run records do not store
+it. Newer ones do.
+
+All of the above is written from the sweep of 1 Sep 2026 that actually hit the
+wall at run 37 of 48, which is where each of these three gaps was found. It
+resumed to 48 good runs, 0 errors.
 
 Two habits that cost nothing and save an evening:
 
