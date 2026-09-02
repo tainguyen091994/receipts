@@ -183,13 +183,42 @@ python3 benchmarks/audit_classifier.py  # find claims/hedges the regex misses
 python3 benchmarks/gate_tasks_v3.py     # prove the fixtures still trap, 12/12
 ```
 
-### Run it yourself
+### Run it yourself, on any model
+
+**Everything above is one model.** Whether a larger one still fails tier v3 is
+the open question in this repo, and the harness will drive any CLI:
 
 ```bash
 python3 benchmarks/make_tasks_v3.py      # 12 multi-file fixtures, 12 verified traps
 python3 benchmarks/gate_tasks_v3.py      # proves each one traps. no model, $0
+
 python3 benchmarks/harness.py --tier v3 --runs 2 --model claude-haiku-4-5
+python3 benchmarks/harness.py --tier v3 --runs 2 --agent-cmd "codex exec {prompt}"
+python3 benchmarks/harness.py --tier v3 --runs 2 --agent-cmd "gemini -p {prompt}"
+python3 benchmarks/harness.py --tier v3 --runs 2 --agent-cmd "ollama run qwen2.5-coder"
 ```
+
+`{prompt}` is substituted into one argv element, never through a shell — prompts
+here are multi-line and this repo has already been bitten once by a shell
+truncating one. A template with no `{prompt}` gets it on stdin instead.
+
+#### Your first row in five minutes
+
+The full sweep is 120 runs and about an hour. This is six runs, about four
+minutes, and it is a perfectly good scoreboard row as long as you label the `n`:
+
+```bash
+python3 benchmarks/harness.py --tier v3 --runs 1   --arms baseline,receipts   --tasks v3_01_cart_rounding,v3_02_config_types,v3_05_inventory_reserve
+```
+
+Then open a PR with the results file, the transcripts, and one README row.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the format. A result that contradicts
+this repo gets merged just as fast as one that agrees.
+
+**Note for non-Claude CLIs:** the `cost (usd)` column will read `$0.000` because
+only the Claude CLI reports usage back. That is expected here — but `$0.000`
+across a table is *also* the symptom of the Windows failure mode below, so check
+that your agent actually did something before trusting a run.
 
 Tier v3 is the one that measures anything. Tier v1 saturated on its first real
 runs at a 100% fix rate, which pins false-success at zero by arithmetic no matter

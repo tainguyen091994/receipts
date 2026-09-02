@@ -17,6 +17,7 @@ import os
 import pathlib
 import random
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -443,6 +444,76 @@ def _resolve_claude() -> str:
 CLAUDE_BIN = _resolve_claude()
 
 
+def build_agent_argv(template: str, prompt: str) -> tuple[list[str], str | None]:
+    """Turn an --agent-cmd template into argv, plus what to send on stdin.
+
+    Everything measured in this repository is one model, because until now the
+    harness could only drive one CLI. That made "run it on your model" an empty
+    invitation: you had to edit Python first, and most people will not.
+
+        --agent-cmd "codex exec {prompt}"
+        --agent-cmd "gemini -p {prompt}"
+        --agent-cmd "ollama run qwen2.5-coder"      # no {prompt} -> stdin
+
+    The prompt is substituted into an argv ELEMENT, never into a shell string.
+    That is not fussiness: prompts here are multi-line, and this repo already
+    documents at length how cmd.exe truncates a command line at the first
+    newline and leaves you with a well-formed table of nothing. No shell, no
+    truncation.
+
+    A template with no {prompt} sends the prompt on stdin instead, which is how
+    several CLIs prefer to take it.
+    """
+    try:
+        parts = shlex.split(template, posix=(os.name != "nt"))
+    except ValueError as e:
+        raise SystemExit(f"--agent-cmd is not parseable: {e}")
+    if os.name == "nt":
+        # posix=False keeps Windows backslash paths intact but leaves the quotes
+        # on, so strip one matched pair per token.
+        parts = [p[1:-1] if len(p) > 1 and p[0] == p[-1] and p[0] in "\"'"
+                 else p for p in parts]
+    if not parts:
+        raise SystemExit("--agent-cmd is empty")
+
+    if not any("{prompt}" in p for p in parts):
+        return parts, prompt
+    return [p.replace("{prompt}", prompt) for p in parts], None
+
+
+def run_agent_custom(prompt: str, workdir: pathlib.Path, template: str,
+                     timeout: int) -> dict:
+    """Drive any CLI. Output is parsed as JSON if it is JSON, else taken raw."""
+    argv, stdin_text = build_agent_argv(template, prompt)
+    try:
+        p = subprocess.run(argv, cwd=workdir, input=stdin_text,
+                           capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        raise SystemExit(f"ERROR: could not execute `{argv[0]}` from "
+                         f"--agent-cmd. Is it on PATH?")
+    except subprocess.TimeoutExpired:
+        return {"final": "", "usage": {}, "error": "timeout"}
+
+    raw = (p.stdout or "").strip()
+    final, usage = raw, {}
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            # Best-effort across CLIs that happen to emit JSON.
+            for k in ("result", "text", "response", "output", "content"):
+                if isinstance(data.get(k), str):
+                    final = data[k]
+                    break
+            usage = data.get("usage", {}) or {}
+            if "total_cost_usd" in data:
+                usage["total_cost_usd"] = data["total_cost_usd"]
+    except json.JSONDecodeError:
+        pass
+    return {"final": final, "usage": usage,
+            "error": None if p.returncode == 0
+            else f"exit {p.returncode}: {(p.stderr or '')[-500:]}"}
+
+
 def run_agent_cli(prompt: str, workdir: pathlib.Path, model: str,
                   timeout: int) -> dict:
     # bypassPermissions is required: with acceptEdits the agent can edit files
@@ -586,6 +657,14 @@ def main() -> int:
     ap.add_argument("--arms", default=",".join(ARMS))
     ap.add_argument("--tasks", default="", help="comma-separated task ids")
     ap.add_argument("--model", default="", help="model id passed to the CLI")
+    ap.add_argument("--agent-cmd", default="", metavar="TEMPLATE",
+                    help='drive a different agent CLI, e.g. '
+                         '--agent-cmd "codex exec {prompt}". {prompt} is '
+                         "substituted into one argv element, never through a "
+                         "shell. A template with no {prompt} gets the prompt on "
+                         "stdin. Use --model as a label for the scoreboard row; "
+                         "it is not passed through unless your template says "
+                         "so")
     ap.add_argument("--timeout", type=int, default=300)
     ap.add_argument("--dry-run", action="store_true",
                     help="no model calls, no cost - verifies the pipeline only")
@@ -643,7 +722,8 @@ def main() -> int:
     manifest = {
         "stamp": stamp, "tier": args.tier, "arms": arms,
         "tasks": [t["id"] for t in tasks], "runs": args.runs,
-        "model": args.model, "dry_run": args.dry_run,
+        "model": args.model, "agent_cmd": args.agent_cmd or None,
+        "dry_run": args.dry_run,
         "classifier_version": CLASSIFIER_VERSION,
         "started": time.strftime("%Y-%m-%d %H:%M:%S"),
         "resume_cmd": (
@@ -734,6 +814,9 @@ def main() -> int:
                         if args.dry_run:
                             out = run_agent_fake(prompt, wd, arm, rng, task,
                                                  args.tier)
+                        elif args.agent_cmd:
+                            out = run_agent_custom(prompt, wd, args.agent_cmd,
+                                                   args.timeout)
                         else:
                             out = run_agent_cli(prompt, wd, args.model,
                                                 args.timeout)
@@ -768,6 +851,12 @@ def main() -> int:
                         # produced it is not a receipt. It is also what made
                         # resume.py --adopt need the model by hand.
                         "model": args.model or "CLI default",
+                        # Provenance. --agent-cmd makes it easy to point the
+                        # harness at anything, including something that never
+                        # calls a model - so the record says what was actually
+                        # driven. A transcript that cannot name what produced it
+                        # is not a receipt.
+                        "agent_cmd": args.agent_cmd or None,
                         "final": out["final"], "src_after": src_after,
                         "usage": out.get("usage", {}),
                         "error": out.get("error"),
