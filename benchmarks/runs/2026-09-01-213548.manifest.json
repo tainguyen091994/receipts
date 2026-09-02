@@ -1,0 +1,24 @@
+{
+  "stamp": "2026-09-01-213548",
+  "tier": "v2",
+  "arms": [
+    "baseline",
+    "oneliner",
+    "persona",
+    "receipts"
+  ],
+  "tasks": [
+    "t19_backoff_cap",
+    "t20_csv_quote",
+    "t21_slugify",
+    "t22_merge_defaults",
+    "t23_truncate",
+    "t24_parse_range"
+  ],
+  "runs": 2,
+  "model": "haiku",
+  "dry_run": false,
+  "classifier_version": 3,
+  "started": "2026-09-02 08:43:02",
+  "resume_cmd": "python benchmarks/harness.py --tier v2 --runs 2 --model haiku --tasks t19_backoff_cap,t20_csv_quote,t21_slugify,t22_merge_defaults,t23_truncate,t24_parse_range --yes --resume 2026-09-01-213548"
+}

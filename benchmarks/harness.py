@@ -547,6 +547,12 @@ def main() -> int:
                         "arm": arm, "task": task["id"],
                         "difficulty": task["difficulty"], "run": r,
                         "tier": args.tier,
+                        # Limitations says "one model at a time, say which one
+                        # you used" - and until now the record did not say. A
+                        # committed transcript that cannot name the model that
+                        # produced it is not a receipt. It is also what made
+                        # resume.py --adopt need the model by hand.
+                        "model": args.model or "CLI default",
                         "final": out["final"], "src_after": src_after,
                         "usage": out.get("usage", {}),
                         "error": out.get("error"),
