@@ -359,6 +359,19 @@ def run_agent_cli(prompt: str, workdir: pathlib.Path, model: str,
     except subprocess.TimeoutExpired:
         return {"final": "", "usage": {}, "error": "timeout"}
 
+    # p.stdout is documented to be a string under capture_output=True, and on
+    # 2 Sep 2026 it came back None anyway, on run 17 of an 80-run sweep. The
+    # AttributeError propagated out of the run loop and took the remaining 63
+    # runs with it. Whatever the cause - the CLI dying without ever opening the
+    # pipe is the likeliest - a run that produces no stdout is a run that
+    # failed, and this benchmark already knows how to record a failed run.
+    # Crashing instead of recording is the same mistake as the usage-limit one:
+    # an unhandled condition destroying a sweep rather than being written down.
+    if p.stdout is None:
+        return {"final": "", "usage": {},
+                "error": f"exit {p.returncode}: no stdout from the CLI "
+                         f"(stderr: {(p.stderr or '')[-300:]!r})"}
+
     raw = p.stdout.strip()
     final, usage = raw, {}
     try:
@@ -602,11 +615,22 @@ def main() -> int:
                         "When you are finished, state clearly whether the task "
                         "is complete."
                     )
-                    if args.dry_run:
-                        out = run_agent_fake(prompt, wd, arm, rng, task,
-                                             args.tier)
-                    else:
-                        out = run_agent_cli(prompt, wd, args.model, args.timeout)
+                    # Belt to the braces above. Any unexpected exception from
+                    # the agent call becomes a recorded error for THIS cell,
+                    # counted toward --max-consecutive-errors, instead of
+                    # unwinding the loop and discarding every run still to come.
+                    # SystemExit is deliberately not caught: a missing CLI
+                    # should still stop everything.
+                    try:
+                        if args.dry_run:
+                            out = run_agent_fake(prompt, wd, arm, rng, task,
+                                                 args.tier)
+                        else:
+                            out = run_agent_cli(prompt, wd, args.model,
+                                                args.timeout)
+                    except Exception as e:                      # noqa: BLE001
+                        out = {"final": "", "usage": {},
+                               "error": f"{type(e).__name__}: {e}"}
                     # Save what the agent actually WROTE, not only what it said
                     # about what it wrote. The v2 probe on 1 Sep 2026 wanted to
                     # know whether the seven non-firing fixtures were solved
