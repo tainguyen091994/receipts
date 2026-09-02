@@ -121,6 +121,31 @@ def test_q7_still_matches_the_text_frozen_in_prediction_4():
         "deliberate it is a NEW prediction, not an edit.")
 
 
+def test_read_first_still_matches_the_text_frozen_in_prediction_6():
+    """Same guard as Q7. An intervention reworded after a run is a new
+    prediction, not an edit."""
+    import re
+    from harness import READ_FIRST
+    pred = (pathlib.Path(__file__).resolve().parent / "PREDICTION-6.md")
+    block = re.search(
+        r"> \*\*Which files does my fix depend on being correct\?\*\*\n"
+        r"(?:> .*\n)+", pred.read_text(encoding="utf-8"))
+    assert block, "the frozen read_first block is missing from PREDICTION-6.md"
+    quoted = "\n".join(l[2:] if l.startswith("> ") else l
+                       for l in block.group(0).strip().split("\n"))
+    assert " ".join(quoted.split()) == " ".join(READ_FIRST.split()), (
+        "harness.READ_FIRST no longer matches PREDICTION-6.md")
+
+
+def test_read_first_carries_no_other_scaffolding():
+    """It is measured against the skill, so it must not contain the skill."""
+    from harness import READ_FIRST, arm_prefix
+    assert arm_prefix("read_first") == READ_FIRST
+    assert "receipt" not in READ_FIRST.lower(), (
+        "read_first must not ask for pasted output - evidence rate is a "
+        "measured outcome here, not something the prompt buys")
+
+
 def test_every_v3_task_declares_its_cause_module():
     """PREDICTION-4.md's deciding metric is whether the agent names this file,
     so it has to exist before the run rather than be chosen after it."""
