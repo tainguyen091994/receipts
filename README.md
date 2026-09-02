@@ -1,5 +1,10 @@
 # Receipts
 
+[![tests](https://github.com/tainguyen091994/receipts/actions/workflows/test.yml/badge.svg)](https://github.com/tainguyen091994/receipts/actions/workflows/test.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![runs](https://img.shields.io/badge/benchmarked%20runs-424-8A6510)](benchmarks/results/)
+[![predictions](https://img.shields.io/badge/predictions%20filed-6%20(2%20lost)-3C6070)](benchmarks/PREDICTION.md)
+
 **No receipts, no claim.**
 
 Your agent just told you it fixed the bug.

@@ -1,0 +1,125 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------- unit tests
+  tests:
+    name: pytest (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install pytest
+
+      # The fixture generators must run first - tasks/ is generated, not
+      # committed as the source of truth, so a stale generator would otherwise
+      # go unnoticed.
+      - name: Generate fixtures
+        run: |
+          python benchmarks/make_tasks.py
+          python benchmarks/make_tasks_v2.py
+          python benchmarks/make_tasks_v3.py
+
+      # NOT `pytest benchmarks/`. benchmarks/tasks*/ is full of fixtures that
+      # are DESIGNED to fail - collecting them would turn the point of this
+      # repository into a red build.
+      - name: Unit tests
+        run: |
+          python -m pytest -q \
+            benchmarks/test_classifier.py \
+            benchmarks/test_agent_cmd.py \
+            benchmarks/test_harness_v2.py \
+            benchmarks/test_harness_v3.py
+
+      - name: Pipeline dry run (no model, no cost)
+        run: |
+          python benchmarks/harness.py --dry-run --runs 1 --tasks t01_pagination
+          python benchmarks/harness.py --dry-run --tier v3 --runs 1 --tasks v3_01_cart_rounding
+
+  # ------------------------------------------------------------ fixture gates
+  gates:
+    name: fixture gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest
+      - run: |
+          python benchmarks/make_tasks_v2.py
+          python benchmarks/make_tasks_v3.py
+
+      # A fixture that no longer traps is a fixture that measures nothing. The
+      # gates assert: the bug still breaks the visible suite, the reference fix
+      # still passes visible+hidden, and the plausible wrong fix still passes
+      # visible while failing hidden.
+      - name: Tier v2 gate
+        run: python benchmarks/gate_tasks_v2.py
+      - name: Tier v3 gate
+        run: python benchmarks/gate_tasks_v3.py
+
+  # -------------------------------------------------- the repo's own argument
+  integrity:
+    name: predictions unedited
+    runs-on: ubuntu-latest
+    steps:
+      # Full history. The check below is about history, so a shallow clone
+      # would pass it vacuously.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # This repository's entire argument is that its predictions were filed
+      # before the data and never quietly edited afterwards. That claim lives in
+      # git history and nowhere else, so it is worth a machine checking rather
+      # than a reader trusting.
+      #
+      # If you are changing a prediction deliberately - which the rules in
+      # benchmarks/README.md say you should not - this job is where it stops
+      # being invisible.
+      - name: Each PREDICTION file has exactly one commit
+        run: |
+          fail=0
+          for f in benchmarks/PREDICTION*.md; do
+            n=$(git log --oneline -- "$f" | wc -l)
+            if [ "$n" -ne 1 ]; then
+              echo "::error file=$f::$f has $n commits, expected 1 - a filed prediction must not be edited"
+              fail=1
+            else
+              echo "ok  $f  ($n commit)"
+            fi
+          done
+          exit $fail
+
+      # SKILL.md's prompt body is the `receipts` arm. It is the control in four
+      # sweeps and 87 recorded runs; changing it silently voids every comparison
+      # against them. Frontmatter is free to change - skill_text() strips it.
+      - name: The receipts arm prompt has not changed
+        run: pip install pytest && python -m pytest -q benchmarks/test_classifier.py -k receipts_arm_prompt
+
+      # Informational, never blocking. A new model phrases things this repo has
+      # not seen, and a contributor adding transcripts should not get a red X
+      # for finding something interesting - but the output should be visible in
+      # the log, because the classifier has been wrong twice and both times it
+      # was caught by reading output rather than by running a test.
+      - name: Classifier audit (informational)
+        continue-on-error: true
+        run: python benchmarks/audit_classifier.py
