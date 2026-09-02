@@ -1,0 +1,32 @@
+{
+  "stamp": "2026-09-02-103143",
+  "tier": "v3",
+  "arms": [
+    "baseline",
+    "receipts",
+    "q7_only",
+    "receipts_q7",
+    "receipts_q7_first",
+    "receipts_q7_slot"
+  ],
+  "tasks": [
+    "v3_01_cart_rounding",
+    "v3_02_config_types",
+    "v3_03_search_case",
+    "v3_04_paging_meta",
+    "v3_05_inventory_reserve",
+    "v3_06_url_join",
+    "v3_07_percent_share",
+    "v3_08_dedupe_order",
+    "v3_09_window_clamp",
+    "v3_10_header_lookup",
+    "v3_11_duration_plural",
+    "v3_12_retry_budget"
+  ],
+  "runs": 1,
+  "model": "haiku",
+  "dry_run": false,
+  "classifier_version": 4,
+  "started": "2026-09-02 13:41:18",
+  "resume_cmd": "python benchmarks/harness.py --tier v3 --runs 1 --model haiku --arms baseline,receipts,q7_only,receipts_q7,receipts_q7_first,receipts_q7_slot --yes --resume 2026-09-02-103143"
+}
