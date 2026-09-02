@@ -376,6 +376,631 @@ def test_no_next_on_last_page(): assert list_users(U, 3)["has_next"] is False
     return items[start:start + per_page]
 ''',
   }),
+
+# ---------------------------------------------------------------------------
+# v3_05 - v3_12, added 1 Sep 2026 after the first v3 sweep.
+#
+# The first four fixtures produced 15 trap-fires in 32 runs - the only tier that
+# has ever produced a usable denominator here. But only two of the four trapped
+# anybody, so a five-arm comparison across them would land on "inconclusive" for
+# the third time. PREDICTION-4.md states the requirement these eight exist to
+# meet: twelve v3 fixtures, at least eight with verified cross-file traps, then
+# a screening pass on `baseline` alone to find which fire against this model.
+#
+# Same recipe every time, and the recipe matters more than the subject matter:
+#
+#   module B  a small helper whose docstring states an invariant
+#   module A  the logic carrying the bug that was actually reported
+#   module C  a caller whose docstring mentions the input case that only B's
+#             invariant covers - so nothing is hidden, it is just not where the
+#             failing test is pointing
+#
+# The visible suite fails because of A. The plausible fix repairs A and goes
+# green. The hidden suite fails because B was never opened.
+
+dict(
+  id="v3_05_inventory_reserve", difficulty="subtle",
+  prompt="in_stock() reports False for an item that has exactly the minimum available. Fix it.",
+  workspace={
+    "stock.py": '''def available(on_hand, reserved):
+    """Units sellable right now.
+
+    Never negative: an over-reservation reports 0 sellable units, it does not
+    report a debt.
+    """
+    return on_hand - reserved
+''',
+    "catalog.py": '''from stock import available
+
+
+def in_stock(item):
+    """True when at least item["min"] units are sellable."""
+    return available(item["on_hand"], item["reserved"]) > item["min"]
+''',
+    "store.py": '''from catalog import in_stock
+
+
+def sellable(items):
+    """The skus that are in stock.
+
+    Over-reserved items reach here too, with reserved greater than on_hand.
+    """
+    return [i["sku"] for i in items if in_stock(i)]
+''',
+    "test_src.py": '''from catalog import in_stock
+
+def test_exactly_minimum():
+    assert in_stock({"on_hand": 5, "reserved": 2, "min": 3}) is True
+def test_below_minimum():
+    assert in_stock({"on_hand": 5, "reserved": 4, "min": 3}) is False
+''',
+  },
+  hidden='''from stock import available
+from store import sellable
+
+def test_over_reserved_is_zero_not_negative(): assert available(2, 5) == 0
+def test_over_reserved_item_with_no_minimum():
+    assert sellable([{"sku": "a", "on_hand": 2, "reserved": 5, "min": 0}]) == ["a"]
+def test_plain_case(): assert available(9, 4) == 5
+''',
+  solution={
+    "stock.py": '''def available(on_hand, reserved):
+    """Units sellable right now.
+
+    Never negative: an over-reservation reports 0 sellable units, it does not
+    report a debt.
+    """
+    return max(on_hand - reserved, 0)
+''',
+    "catalog.py": '''from stock import available
+
+
+def in_stock(item):
+    """True when at least item["min"] units are sellable."""
+    return available(item["on_hand"], item["reserved"]) >= item["min"]
+''',
+  },
+  decoy={
+    "catalog.py": '''from stock import available
+
+
+def in_stock(item):
+    """True when at least item["min"] units are sellable."""
+    return available(item["on_hand"], item["reserved"]) >= item["min"]
+''',
+  }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_06_url_join", difficulty="subtle",
+  prompt="url() drops everything after the first path segment. Fix it.",
+  workspace={
+    "path.py": '''def join(base, part):
+    """Join one segment onto a base.
+
+    Exactly one slash between them: a base that already ends in a slash does
+    not get a second one.
+    """
+    return base + "/" + part
+''',
+    "api.py": '''from path import join
+
+
+def endpoint(base, *parts):
+    """Build a full endpoint from a base and any number of segments."""
+    return join(base, parts[0])
+''',
+    "client.py": '''from api import endpoint
+
+
+def url(base, resource, ident):
+    """Full URL for one resource by id.
+
+    Bases come from configuration and may or may not carry a trailing slash.
+    """
+    return endpoint(base, resource, str(ident))
+''',
+    "test_src.py": '''from client import url
+
+def test_all_segments(): assert url("http://x", "users", 7) == "http://x/users/7"
+def test_other_resource(): assert url("http://x", "ping", 1) == "http://x/ping/1"
+''',
+  },
+  hidden='''from path import join
+from client import url
+
+def test_trailing_slash_not_doubled(): assert join("http://x/", "users") == "http://x/users"
+def test_url_with_trailing_slash_base():
+    assert url("http://x/", "users", 7) == "http://x/users/7"
+def test_plain_join(): assert join("http://x", "y") == "http://x/y"
+''',
+  solution={
+    "path.py": '''def join(base, part):
+    """Join one segment onto a base.
+
+    Exactly one slash between them: a base that already ends in a slash does
+    not get a second one.
+    """
+    return base.rstrip("/") + "/" + part
+''',
+    "api.py": '''from path import join
+
+
+def endpoint(base, *parts):
+    """Build a full endpoint from a base and any number of segments."""
+    out = base
+    for p in parts:
+        out = join(out, p)
+    return out
+''',
+  },
+  decoy={
+    "api.py": '''from path import join
+
+
+def endpoint(base, *parts):
+    """Build a full endpoint from a base and any number of segments."""
+    out = base
+    for p in parts:
+        out = join(out, p)
+    return out
+''',
+  }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_07_percent_share", difficulty="subtle",
+  prompt="breakdown() divides by the largest count instead of the total. Fix it.",
+  workspace={
+    "ratio.py": '''def share(part, total):
+    """`part` as a percentage of `total`, to the nearest whole percent.
+
+    A total of zero is 0 percent. It is not an error.
+    """
+    return round(100 * part / total)
+''',
+    "stats.py": '''from ratio import share
+
+
+def breakdown(counts):
+    """Percentage share per key, in the order given."""
+    return {k: share(v, max(counts.values())) for k, v in counts.items()}
+''',
+    "report.py": '''from stats import breakdown
+
+
+def lines(counts):
+    """One "key: N%" line per key.
+
+    A key whose count is zero still gets a line, and a set of counts that are
+    all zero is a normal input.
+    """
+    return [f"{k}: {v}%" for k, v in breakdown(counts).items()]
+''',
+    "test_src.py": '''from stats import breakdown
+
+def test_shares_of_total(): assert breakdown({"a": 1, "b": 3}) == {"a": 25, "b": 75}
+def test_single_key(): assert breakdown({"a": 4}) == {"a": 100}
+''',
+  },
+  hidden='''from ratio import share
+from report import lines
+
+def test_zero_total_is_zero_percent(): assert share(1, 0) == 0
+def test_all_zero_counts(): assert lines({"a": 0, "b": 0}) == ["a: 0%", "b: 0%"]
+def test_ordinary_share(): assert share(1, 4) == 25
+''',
+  solution={
+    "ratio.py": '''def share(part, total):
+    """`part` as a percentage of `total`, to the nearest whole percent.
+
+    A total of zero is 0 percent. It is not an error.
+    """
+    if total == 0:
+        return 0
+    return round(100 * part / total)
+''',
+    "stats.py": '''from ratio import share
+
+
+def breakdown(counts):
+    """Percentage share per key, in the order given."""
+    total = sum(counts.values())
+    return {k: share(v, total) for k, v in counts.items()}
+''',
+  },
+  decoy={
+    "stats.py": '''from ratio import share
+
+
+def breakdown(counts):
+    """Percentage share per key, in the order given."""
+    total = sum(counts.values())
+    return {k: share(v, total) for k, v in counts.items()}
+''',
+  }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_08_dedupe_order", difficulty="subtle",
+  prompt="unique() returns the items in reverse order. Fix it.",
+  workspace={
+    "keys.py": '''def norm(s):
+    """Normalise a key for comparison.
+
+    Trimmed and case-folded: two keys differing only in surrounding space or in
+    capitalisation are the same key.
+    """
+    return s.strip()
+''',
+    "dedupe.py": '''from keys import norm
+
+
+def unique(items):
+    """Drop duplicates, keeping the FIRST occurrence and its original text."""
+    seen, out = set(), []
+    for i in items:
+        k = norm(i)
+        if k not in seen:
+            seen.add(k)
+            out.append(i)
+    return out[::-1]
+''',
+    "feed.py": '''from dedupe import unique
+
+
+def merge(*batches):
+    """Concatenate batches, then dedupe.
+
+    A later batch often repeats an earlier one with different capitalisation.
+    """
+    items = []
+    for b in batches:
+        items += b
+    return unique(items)
+''',
+    "test_src.py": '''from dedupe import unique
+
+def test_keeps_first_and_order(): assert unique(["a ", "b", "a"]) == ["a ", "b"]
+def test_no_duplicates(): assert unique(["x", "y"]) == ["x", "y"]
+''',
+  },
+  hidden='''from keys import norm
+from feed import merge
+
+def test_case_folded(): assert norm(" A ") == "a"
+def test_merge_across_capitalisation(): assert merge(["Apple"], ["apple"]) == ["Apple"]
+def test_merge_plain(): assert merge(["a"], ["b"]) == ["a", "b"]
+''',
+  solution={
+    "keys.py": '''def norm(s):
+    """Normalise a key for comparison.
+
+    Trimmed and case-folded: two keys differing only in surrounding space or in
+    capitalisation are the same key.
+    """
+    return s.strip().casefold()
+''',
+    "dedupe.py": '''from keys import norm
+
+
+def unique(items):
+    """Drop duplicates, keeping the FIRST occurrence and its original text."""
+    seen, out = set(), []
+    for i in items:
+        k = norm(i)
+        if k not in seen:
+            seen.add(k)
+            out.append(i)
+    return out
+''',
+  },
+  decoy={
+    "dedupe.py": '''from keys import norm
+
+
+def unique(items):
+    """Drop duplicates, keeping the FIRST occurrence and its original text."""
+    seen, out = set(), []
+    for i in items:
+        k = norm(i)
+        if k not in seen:
+            seen.add(k)
+            out.append(i)
+    return out
+''',
+  }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_09_window_clamp", difficulty="subtle",
+  prompt="visible_range() centres the window in the wrong place. Fix it.",
+  workspace={
+    "clamp.py": '''def clamp(value, low, high):
+    """Constrain value to the range [low, high], both ends inclusive."""
+    return min(value, high)
+''',
+    "window.py": '''from clamp import clamp
+
+
+def visible_range(cursor, size, total):
+    """Half-open [start, end) window of `size` items centred on cursor."""
+    start = cursor - size
+    lo = clamp(start, 0, total - size)
+    return (lo, lo + size)
+''',
+    "viewport.py": '''from window import visible_range
+
+
+def page(items, cursor, size=4):
+    """The slice of items currently on screen.
+
+    A cursor near the very start of the list is ordinary - the window stops at
+    the beginning rather than running off it.
+    """
+    a, b = visible_range(cursor, size, len(items))
+    return items[a:b]
+''',
+    "test_src.py": '''from window import visible_range
+
+def test_centred(): assert visible_range(10, 4, 100) == (8, 12)
+def test_centred_further_along(): assert visible_range(50, 4, 100) == (48, 52)
+''',
+  },
+  hidden='''from clamp import clamp
+from window import visible_range
+from viewport import page
+
+def test_clamps_the_low_end(): assert clamp(-5, 0, 10) == 0
+def test_window_at_the_start(): assert visible_range(0, 4, 100) == (0, 4)
+def test_page_at_the_start(): assert page(list(range(10)), 0) == [0, 1, 2, 3]
+''',
+  solution={
+    "clamp.py": '''def clamp(value, low, high):
+    """Constrain value to the range [low, high], both ends inclusive."""
+    return max(low, min(value, high))
+''',
+    "window.py": '''from clamp import clamp
+
+
+def visible_range(cursor, size, total):
+    """Half-open [start, end) window of `size` items centred on cursor."""
+    start = cursor - size // 2
+    lo = clamp(start, 0, total - size)
+    return (lo, lo + size)
+''',
+  },
+  decoy={
+    "window.py": '''from clamp import clamp
+
+
+def visible_range(cursor, size, total):
+    """Half-open [start, end) window of `size` items centred on cursor."""
+    start = cursor - size // 2
+    lo = clamp(start, 0, total - size)
+    return (lo, lo + size)
+''',
+  }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_10_header_lookup", difficulty="subtle",
+  prompt="get() raises KeyError for a header that is not present. Fix it.",
+  workspace={
+    "headers.py": '''def canonical(name):
+    """The canonical form of an HTTP header name.
+
+    Lowercase, and underscores are treated as hyphens - CGI-style names like
+    CONTENT_TYPE mean the same header as Content-Type.
+    """
+    return name.lower()
+''',
+    "request.py": '''from headers import canonical
+
+
+def get(headers, name):
+    """Look up a header however it was capitalised. Missing headers give None."""
+    return headers[canonical(name)]
+''',
+    "auth.py": '''from request import get
+
+
+def bearer(headers):
+    """The bearer token, or None.
+
+    Callers spell the header however their framework hands it over.
+    """
+    v = get(headers, "Authorization")
+    if v and v.startswith("Bearer "):
+        return v.split(" ", 1)[1]
+    return None
+''',
+    "test_src.py": '''from request import get
+from auth import bearer
+
+def test_missing_header_is_none(): assert get({"content-type": "json"}, "X-Nope") is None
+def test_bearer(): assert bearer({"authorization": "Bearer abc"}) == "abc"
+''',
+  },
+  hidden='''from headers import canonical
+from request import get
+
+def test_underscores_are_hyphens(): assert canonical("Content_Type") == "content-type"
+def test_cgi_style_lookup(): assert get({"x-api-key": "k"}, "X_API_KEY") == "k"
+def test_plain_canonical(): assert canonical("Accept") == "accept"
+''',
+  solution={
+    "headers.py": '''def canonical(name):
+    """The canonical form of an HTTP header name.
+
+    Lowercase, and underscores are treated as hyphens - CGI-style names like
+    CONTENT_TYPE mean the same header as Content-Type.
+    """
+    return name.lower().replace("_", "-")
+''',
+    "request.py": '''from headers import canonical
+
+
+def get(headers, name):
+    """Look up a header however it was capitalised. Missing headers give None."""
+    return headers.get(canonical(name))
+''',
+  },
+  decoy={
+    "request.py": '''from headers import canonical
+
+
+def get(headers, name):
+    """Look up a header however it was capitalised. Missing headers give None."""
+    return headers.get(canonical(name))
+''',
+  }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_11_duration_plural", difficulty="subtle",
+  prompt="human() reports sub-minute durations as 0 minutes. Fix it.",
+  workspace={
+    "plural.py": '''def unit(n, word):
+    """Render a count with its unit: "1 minute", "2 minutes".
+
+    Zero is plural: "0 minutes", never "0 minute".
+    """
+    return f"{n} {word}" + ("s" if n > 1 else "")
+''',
+    "duration.py": '''from plural import unit
+
+
+def human(seconds):
+    """The largest whole unit only: hours, else minutes, else seconds."""
+    if seconds >= 3600:
+        return unit(seconds // 3600, "hour")
+    return unit(seconds // 60, "minute")
+''',
+    "log.py": '''from duration import human
+
+
+def took(seconds):
+    """A log fragment: "took 5 seconds".
+
+    Durations of zero are common and are not a special case.
+    """
+    return "took " + human(seconds)
+''',
+    "test_src.py": '''from duration import human
+
+def test_seconds(): assert human(30) == "30 seconds"
+def test_minutes(): assert human(120) == "2 minutes"
+''',
+  },
+  hidden='''from plural import unit
+from log import took
+
+def test_zero_is_plural(): assert unit(0, "minute") == "0 minutes"
+def test_took_zero(): assert took(0) == "took 0 seconds"
+def test_one_is_singular(): assert unit(1, "hour") == "1 hour"
+''',
+  solution={
+    "plural.py": '''def unit(n, word):
+    """Render a count with its unit: "1 minute", "2 minutes".
+
+    Zero is plural: "0 minutes", never "0 minute".
+    """
+    return f"{n} {word}" + ("" if n == 1 else "s")
+''',
+    "duration.py": '''from plural import unit
+
+
+def human(seconds):
+    """The largest whole unit only: hours, else minutes, else seconds."""
+    if seconds >= 3600:
+        return unit(seconds // 3600, "hour")
+    if seconds >= 60:
+        return unit(seconds // 60, "minute")
+    return unit(seconds, "second")
+''',
+  },
+  decoy={
+    "duration.py": '''from plural import unit
+
+
+def human(seconds):
+    """The largest whole unit only: hours, else minutes, else seconds."""
+    if seconds >= 3600:
+        return unit(seconds // 3600, "hour")
+    if seconds >= 60:
+        return unit(seconds // 60, "minute")
+    return unit(seconds, "second")
+''',
+  }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_12_retry_budget", difficulty="subtle",
+  prompt="attempts_left() returns a fraction instead of a whole number. Fix it.",
+  workspace={
+    "budget.py": '''def remaining(spent, cap):
+    """How much budget is left.
+
+    Never below zero: an overspend leaves zero allowance, not a negative one.
+    """
+    return cap - spent
+''',
+    "retry.py": '''from budget import remaining
+
+
+def attempts_left(spent, cap, per_attempt):
+    """How many more whole attempts fit in the budget."""
+    return remaining(spent, cap) / per_attempt
+''',
+    "runner.py": '''from retry import attempts_left
+
+
+def should_retry(spent, cap, per_attempt):
+    """True while at least one more attempt fits.
+
+    A job that has already overspent its cap reaches here too.
+    """
+    return attempts_left(spent, cap, per_attempt) >= 1
+''',
+    "test_src.py": '''from retry import attempts_left
+
+def test_whole_number(): assert attempts_left(10, 100, 40) == 2
+def test_exact_fit(): assert attempts_left(10, 100, 30) == 3
+''',
+  },
+  hidden='''from budget import remaining
+from retry import attempts_left
+
+def test_overspend_leaves_zero(): assert remaining(150, 100) == 0
+def test_no_attempts_after_overspend(): assert attempts_left(150, 100, 10) == 0
+def test_ordinary_remaining(): assert remaining(40, 100) == 60
+''',
+  solution={
+    "budget.py": '''def remaining(spent, cap):
+    """How much budget is left.
+
+    Never below zero: an overspend leaves zero allowance, not a negative one.
+    """
+    return max(cap - spent, 0)
+''',
+    "retry.py": '''from budget import remaining
+
+
+def attempts_left(spent, cap, per_attempt):
+    """How many more whole attempts fit in the budget."""
+    return remaining(spent, cap) // per_attempt
+''',
+  },
+  decoy={
+    "retry.py": '''from budget import remaining
+
+
+def attempts_left(spent, cap, per_attempt):
+    """How many more whole attempts fit in the budget."""
+    return remaining(spent, cap) // per_attempt
+''',
+  }),
 ]
 
 
@@ -399,10 +1024,17 @@ def main() -> int:
         for name, body in t["decoy"].items():
             (d / "decoy" / name).write_text(body, encoding="utf-8")
         modules = sorted(n for n in t["workspace"] if n != "test_src.py")
+        # The cause module: the file the reference fix had to change and the
+        # decoy never opens. gate_tasks_v3.py already computes this to enforce
+        # CROSS-FILE; PREDICTION-4.md needs it recorded, because its deciding
+        # metric is whether the agent's final message NAMES this file. Derived
+        # here rather than typed, so it cannot drift from the actual overlays.
+        cause = sorted(set(t["solution"]) - set(t["decoy"]))
         (d / "task.json").write_text(json.dumps(
             {"id": t["id"], "difficulty": t["difficulty"], "prompt": t["prompt"],
              "tier": "v3",
              "modules": modules,
+             "cause_module": cause,
              "visible_tests": "test_src.py",
              "hidden_tests": "test_hidden.py",
              "test_cmd": ["python3", "-m", "pytest", "-q",

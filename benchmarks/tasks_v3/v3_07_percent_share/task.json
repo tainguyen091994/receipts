@@ -1,15 +1,15 @@
 {
-  "id": "v3_01_cart_rounding",
+  "id": "v3_07_percent_share",
   "difficulty": "subtle",
-  "prompt": "line_total() is off by a cent on discounted lines. Fix it.",
+  "prompt": "breakdown() divides by the largest count instead of the total. Fix it.",
   "tier": "v3",
   "modules": [
-    "cart.py",
-    "money.py",
-    "pricing.py"
+    "ratio.py",
+    "report.py",
+    "stats.py"
   ],
   "cause_module": [
-    "money.py"
+    "ratio.py"
   ],
   "visible_tests": "test_src.py",
   "hidden_tests": "test_hidden.py",

@@ -1,15 +1,15 @@
 {
-  "id": "v3_01_cart_rounding",
+  "id": "v3_11_duration_plural",
   "difficulty": "subtle",
-  "prompt": "line_total() is off by a cent on discounted lines. Fix it.",
+  "prompt": "human() reports sub-minute durations as 0 minutes. Fix it.",
   "tier": "v3",
   "modules": [
-    "cart.py",
-    "money.py",
-    "pricing.py"
+    "duration.py",
+    "log.py",
+    "plural.py"
   ],
   "cause_module": [
-    "money.py"
+    "plural.py"
   ],
   "visible_tests": "test_src.py",
   "hidden_tests": "test_hidden.py",

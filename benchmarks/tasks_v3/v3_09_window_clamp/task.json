@@ -1,15 +1,15 @@
 {
-  "id": "v3_01_cart_rounding",
+  "id": "v3_09_window_clamp",
   "difficulty": "subtle",
-  "prompt": "line_total() is off by a cent on discounted lines. Fix it.",
+  "prompt": "visible_range() centres the window in the wrong place. Fix it.",
   "tier": "v3",
   "modules": [
-    "cart.py",
-    "money.py",
-    "pricing.py"
+    "clamp.py",
+    "viewport.py",
+    "window.py"
   ],
   "cause_module": [
-    "money.py"
+    "clamp.py"
   ],
   "visible_tests": "test_src.py",
   "hidden_tests": "test_hidden.py",

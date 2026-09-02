@@ -8,6 +8,9 @@
     "lexer.py",
     "search.py"
   ],
+  "cause_module": [
+    "lexer.py"
+  ],
   "visible_tests": "test_src.py",
   "hidden_tests": "test_hidden.py",
   "test_cmd": [

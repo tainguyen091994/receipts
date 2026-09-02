@@ -1,15 +1,15 @@
 {
-  "id": "v3_01_cart_rounding",
+  "id": "v3_06_url_join",
   "difficulty": "subtle",
-  "prompt": "line_total() is off by a cent on discounted lines. Fix it.",
+  "prompt": "url() drops everything after the first path segment. Fix it.",
   "tier": "v3",
   "modules": [
-    "cart.py",
-    "money.py",
-    "pricing.py"
+    "api.py",
+    "client.py",
+    "path.py"
   ],
   "cause_module": [
-    "money.py"
+    "path.py"
   ],
   "visible_tests": "test_src.py",
   "hidden_tests": "test_hidden.py",
