@@ -1,7 +1,7 @@
 ---
 name: receipts
-description: Stops an agent taking credit for work it has not checked. Before it may say done, fixed, passing, or you're right, it has to produce the receipt - what it ran and what came back. Use whenever an agent is about to assert that something works, or agree with a claim it has not verified.
-version: 0.1.0
+description: Makes an agent paste the command output behind a claim - what it ran and what came back - before it may say done, fixed, passing, or you're right. Measured across 424 benchmarked runs to lift evidence rate from 3% to 98%. Measured NOT to reduce false claims about code the agent never read - see README, "The result". Use when you want the receipt attached to the claim.
+version: 0.2.0
 license: MIT
 ---
 

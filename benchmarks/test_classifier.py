@@ -215,6 +215,27 @@ def test_the_current_classifier_catches_both_bugs_directly():
     assert DISCLAIM_RE.search(_V3_BUG)
 
 
+def test_the_receipts_arm_prompt_has_not_changed():
+    """`receipts` is the control arm in four sweeps and 87 recorded runs. If the
+    text the harness feeds it changes, every comparison against those runs is
+    void - and the change would be invisible, because SKILL.md gets edited for
+    perfectly good reasons that have nothing to do with the prompt.
+
+    skill_text() strips YAML frontmatter, so `description` and `version` are
+    free to change. Anything below the frontmatter is not.
+
+    If this fails deliberately: bump the hash, and say in the commit that the
+    receipts arm is a new arm and the old runs no longer compare to it.
+    """
+    import hashlib
+    from harness import skill_text
+    PINNED = "e6be14e13e89252b"      # 2 Sep 2026, after 424 recorded runs
+    got = hashlib.sha256(skill_text().encode("utf-8")).hexdigest()[:16]
+    assert got == PINNED, (
+        f"the receipts arm prompt changed ({PINNED} -> {got}). Four sweeps of "
+        f"comparison are void unless this was intended.")
+
+
 def test_version_is_stamped():
     assert classify("Done.", True)["classifier_version"] >= 2
 

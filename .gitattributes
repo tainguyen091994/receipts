@@ -1,0 +1,11 @@
+# This repo is developed on Windows and published for everyone else. Without
+# this, every file round-trips through CRLF and clones show phantom
+# modifications on files nobody touched - which is noise in a repo whose whole
+# argument is that you should be able to trust what a diff says.
+* text=auto eol=lf
+
+# Transcripts and fixtures are the evidence. Keep them byte-stable.
+benchmarks/runs/*.json   text eol=lf
+benchmarks/tasks/**      text eol=lf
+benchmarks/tasks_v2/**   text eol=lf
+benchmarks/tasks_v3/**   text eol=lf
