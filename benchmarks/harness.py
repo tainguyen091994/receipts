@@ -765,10 +765,23 @@ def main() -> int:
                                   f"the table.")
                             print(f"     Most likely cause: a Pro/Max usage "
                                   f"window filled up. Check with:")
-                            print(f"       claude auth status")
-                            print(f"     The {i - len(records)} runs already "
-                                  f"recorded under this stamp are kept and will")
-                            print(f"     be reused. Wait for the window, then "
+                            # NOT `claude auth status`. It reports login and
+                            # plan and answers subscriptionType: pro just as
+                            # happily while every call is being refused. The
+                            # README was corrected for this; this message was
+                            # not, and told the user to run the one command
+                            # that cannot answer the question.
+                            print(f"       python benchmarks/resume.py --check"
+                                  + (f" --model {args.model}" if args.model
+                                     else ""))
+                            # i - len(records) counted the runs NOT yet
+                            # attempted, and printed "0 runs already recorded"
+                            # over a stamp holding 30 good ones. A message
+                            # about whether data survived has to be right.
+                            good = sum(1 for r in records if not r.get("error"))
+                            print(f"     {good} good runs are already recorded "
+                                  f"under this stamp and will be")
+                            print(f"     reused. Wait for the window, then "
                                   f"paste this exact line:")
                             print()
                             print(f"       {manifest['resume_cmd']}")
