@@ -236,13 +236,23 @@ line to finish it, and `--check` tells you whether the window has reopened.
 
 ### The scoreboard
 
-One model so far. **Post yours and take a row — any model, any machine.**
+**Post yours and take a row — any model, any machine.**
 
 | model | tier | runs | false-success | fix rate | evidence | arm | date |
 |---|---|---|---|---|---|---|---|
 | claude-haiku-4-5 | v3 | 72 | 73.6% | 19/72 | 0/99 | `baseline` | 2 Sep 2026 |
 | claude-haiku-4-5 | v3 | 60 | 75.0% | 15/60 | 84/87 | `receipts` | 2 Sep 2026 |
 | claude-haiku-4-5 | v3 | 24 | 70.8% | 7/24 | 1/24 | `read_first` | 2 Sep 2026 |
+| gemini-2.5-flash *(aider, pilot)* | v3 | 3 | 0/3 | 0/3 | 0/3 | `baseline` | 4 Sep 2026 |
+| gemini-2.5-flash *(aider, pilot)* | v3 | 3 | 0/3 | 0/3 | 0/3 | `receipts` | 4 Sep 2026 |
+
+The last two rows are a **pilot**, not a full row. Three fixtures each, all
+cross-file, run through `aider --agent-cmd` while the free-tier daily quota was
+tight. In every one, aider read `src.py` and `test_src.py`, saw the fix
+belonged in a file it did not have, and stopped rather than guess: zero
+attempts, zero false claims. The full 12-fixture run is pinned for the next
+quota window and will replace these two rows. Working notes and every
+transcript are in [`benchmarks/results/2026-09-04-142649.md`](benchmarks/results/2026-09-04-142649.md).
 
 Open a PR with your `benchmarks/results/*.md` and `benchmarks/runs/*.json`.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the format. **Negative results are the

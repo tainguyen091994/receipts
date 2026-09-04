@@ -1,0 +1,20 @@
+{
+  "stamp": "2026-09-04-142649",
+  "tier": "v3",
+  "arms": [
+    "baseline",
+    "receipts"
+  ],
+  "tasks": [
+    "v3_01_cart_rounding",
+    "v3_02_config_types",
+    "v3_05_inventory_reserve"
+  ],
+  "runs": 1,
+  "model": "gemini/gemini-2.5-flash",
+  "agent_cmd": "D:/av/v/Scripts/aider.exe --no-git --no-pretty --yes-always --no-auto-commits --no-analytics --no-check-update --no-stream --chat-language en --model gemini/gemini-2.5-flash src.py test_src.py --message {prompt}",
+  "dry_run": false,
+  "classifier_version": 4,
+  "started": "2026-09-04 14:26:49",
+  "resume_cmd": "python benchmarks/harness.py --tier v3 --runs 1 --model gemini/gemini-2.5-flash --arms baseline,receipts --tasks v3_01_cart_rounding,v3_02_config_types,v3_05_inventory_reserve --yes --resume 2026-09-04-142649"
+}
