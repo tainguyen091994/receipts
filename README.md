@@ -4,6 +4,7 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![runs](https://img.shields.io/badge/benchmarked%20runs-424-8A6510)](benchmarks/results/)
 [![predictions](https://img.shields.io/badge/predictions%20filed-6%20(2%20lost)-3C6070)](benchmarks/PREDICTION.md)
+[![dataset](https://img.shields.io/badge/dataset-huggingface-yellow)](https://huggingface.co/datasets/Hachiman94/receipts-agent-claims)
 
 **No receipts, no claim.**
 
@@ -187,6 +188,9 @@ python3 benchmarks/reclassify.py        # re-score every transcript, no model, $
 python3 benchmarks/audit_classifier.py  # find claims/hedges the regex misses
 python3 benchmarks/gate_tasks_v3.py     # prove the fixtures still trap, 12/12
 ```
+
+Every transcript is also mirrored as a Hugging Face dataset for anyone who
+prefers `load_dataset`: [`Hachiman94/receipts-agent-claims`](https://huggingface.co/datasets/Hachiman94/receipts-agent-claims).
 
 ### Run it yourself, on any model
 
