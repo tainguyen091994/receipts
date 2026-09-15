@@ -12,6 +12,7 @@ files — edit the skill and run `python3 scripts/build_adapters.py`.
 | GitHub Copilot | `adapters/copilot-instructions.md` | `.github/copilot-instructions.md` |
 | Gemini CLI | `adapters/GEMINI.md` | `GEMINI.md` in your project root |
 | opencode | `adapters/opencode.json` | merge into your `opencode.json` |
+| Cline | `adapters/.clinerules` | `.clinerules` in your project root |
 | Anything else | `adapters/AGENTS.md` | paste into that tool's system prompt or rules file |
 
 ## Claude Code

@@ -78,7 +78,11 @@ def main() -> int:
         ),
     )
 
-    print("done. 6 adapters generated.")
+    # Cline (reads .clinerules — a directory is also accepted, a single
+    # markdown file keeps this to one copy step)
+    write(".clinerules", b)
+
+    print("done. 7 adapters generated.")
     return 0
 
 
