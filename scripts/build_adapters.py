@@ -32,7 +32,7 @@ def body() -> str:
 def write(name: str, content: str) -> None:
     path = OUT / name
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+    path.write_text(content.rstrip() + "\n", encoding="utf-8", newline="\n")
     print(f"  wrote adapters/{name}")
 
 
@@ -82,7 +82,10 @@ def main() -> int:
     # markdown file keeps this to one copy step)
     write(".clinerules", b)
 
-    print("done. 7 adapters generated.")
+    # Aider (reads CONVENTIONS.md in project root or via --read CONVENTIONS.md)
+    write("CONVENTIONS.md", f"{BANNER}\n\n{b}")
+
+    print("done. 8 adapters generated.")
     return 0
 
 
