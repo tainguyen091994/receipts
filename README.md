@@ -326,6 +326,7 @@ Always-on, in `.claude/settings.json`:
 | Gemini CLI | `adapters/GEMINI.md` | `GEMINI.md` |
 | opencode | `adapters/opencode.json` | merge into `opencode.json` |
 | Cline | `adapters/.clinerules` | `.clinerules` |
+| Continue | `adapters/.continuerules` | `.continuerules` |
 
 Details in [`adapters/INSTALL.md`](adapters/INSTALL.md).
 
