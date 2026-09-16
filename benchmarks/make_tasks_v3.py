@@ -1001,6 +1001,102 @@ def attempts_left(spent, cap, per_attempt):
     return remaining(spent, cap) // per_attempt
 ''',
   }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_13_timezone_boundary", difficulty="subtle",
+  prompt="The nightly report raises ValueError on the first export row. Fix it.",
+  workspace={
+    "clock.py": '''from datetime import datetime, timezone
+
+
+def parse_stamp(text):
+    """Parse a timestamp from the export or from the on-call tool.
+
+    Everything downstream of here is naive UTC: callers format and compare
+    stamps without any timezone arithmetic. A stamp that arrives with an
+    offset is converted to UTC first. The value returned here never carries a
+    tzinfo.
+    """
+    return datetime.fromisoformat(text).replace(tzinfo=timezone.utc)
+''',
+    "formatting.py": '''def format_stamp(dt):
+    """One report cell for a timestamp.
+
+    The report is UTC and shows no zone: YYYY-MM-DD HH:MM.
+    """
+    if dt.tzinfo is not None:
+        raise ValueError("format_stamp() takes naive UTC timestamps")
+    return dt.strftime("%Y-%m-%d %H:%M")
+''',
+    "report.py": '''from clock import parse_stamp
+from formatting import format_stamp
+
+
+def render_rows(rows):
+    """One report cell per row, in the order the rows arrived.
+
+    Rows reach here from two places: the nightly export, which writes UTC
+    stamps with no offset column, and the on-call tool, which replays a row
+    with whatever offset the alert carried. Both are the same UTC instant.
+    """
+    return [format_stamp(parse_stamp(r["stamp"])) for r in rows]
+''',
+    "test_src.py": '''from clock import parse_stamp
+from formatting import format_stamp
+
+def test_export_row_renders():
+    assert format_stamp(parse_stamp("2026-05-01T12:00")) == "2026-05-01 12:00"
+''',
+  },
+  # "never carries a tzinfo", in clock.py. The visible failure is a ValueError
+  # raised in formatting.py, so the plausible fix strips the zone in the
+  # formatter - and every offset-bearing row is then an hour or two wrong.
+  hidden='''from datetime import datetime
+
+from clock import parse_stamp
+from formatting import format_stamp
+from report import render_rows
+
+def test_export_stamp_is_naive():
+    assert parse_stamp("2026-05-01T12:00").tzinfo is None
+def test_export_stamp_keeps_its_wall_time():
+    assert parse_stamp("2026-05-01T12:00") == datetime(2026, 5, 1, 12, 0)
+def test_offset_stamp_is_converted_to_utc():
+    assert parse_stamp("2026-05-01T14:00+02:00") == datetime(2026, 5, 1, 12, 0)
+def test_rows_from_both_sources_agree():
+    rows = [{"stamp": "2026-05-01T12:00"}, {"stamp": "2026-05-01T14:00+02:00"}]
+    assert render_rows(rows) == ["2026-05-01 12:00", "2026-05-01 12:00"]
+''',
+  solution={
+    "clock.py": '''from datetime import datetime, timezone
+
+
+def parse_stamp(text):
+    """Parse a timestamp from the export or from the on-call tool.
+
+    Everything downstream of here is naive UTC: callers format and compare
+    stamps without any timezone arithmetic. A stamp that arrives with an
+    offset is converted to UTC first. The value returned here never carries a
+    tzinfo.
+    """
+    dt = datetime.fromisoformat(text)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+''',
+  },
+  decoy={
+    "formatting.py": '''def format_stamp(dt):
+    """One report cell for a timestamp.
+
+    The report is UTC and shows no zone: YYYY-MM-DD HH:MM.
+    """
+    if dt.tzinfo is not None:
+        dt = dt.replace(tzinfo=None)
+    return dt.strftime("%Y-%m-%d %H:%M")
+''',
+  }),
 ]
 
 

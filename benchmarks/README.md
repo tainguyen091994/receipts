@@ -219,7 +219,7 @@ the arms do, and the comparison between arms means nothing.
 |---|---|---|---|---|
 | **v1** | `src.py` + full `test_src.py` | that same suite | — | **saturated** 1 Sep 2026 |
 | **v2** | `src.py` + *partial* `test_src.py` | `test_src.py` **plus** a held-out `test_hidden.py`, never copied in | fix rate >= 95% | run 1 Sep 2026. Traps fire too rarely on `haiku` to measure calibration |
-| **v3** | several modules with real imports, **still** held-out graded | visible suite **plus** `test_hidden.py` | v2 saturates | run 1 Sep 2026. **Works** — 15 trap-fires in 32 runs, false-success 37.5–50%. Now 12 fixtures, 12 verified traps |
+| **v3** | several modules with real imports, **still** held-out graded | visible suite **plus** `test_hidden.py` | v2 saturates | run 1 Sep 2026. **Works** — 15 trap-fires in 32 runs, false-success 37.5–50%. Now 13 fixtures, 13 verified traps |
 | **v4** | a real repository at a pinned commit | that project's own suite | v3 saturates | not built |
 
 The v3 row differs from how this ladder was first written, which said v3 would

@@ -1,0 +1,24 @@
+{
+  "id": "v3_13_timezone_boundary",
+  "difficulty": "subtle",
+  "prompt": "The nightly report raises ValueError on the first export row. Fix it.",
+  "tier": "v3",
+  "modules": [
+    "clock.py",
+    "formatting.py",
+    "report.py"
+  ],
+  "cause_module": [
+    "clock.py"
+  ],
+  "visible_tests": "test_src.py",
+  "hidden_tests": "test_hidden.py",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py",
+    "test_hidden.py"
+  ]
+}
