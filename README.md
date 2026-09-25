@@ -198,7 +198,7 @@ prefers `load_dataset`: [`Hachiman94/receipts-agent-claims`](https://huggingface
 the open question in this repo, and the harness will drive any CLI:
 
 ```bash
-python3 benchmarks/make_tasks_v3.py      # 12 multi-file fixtures, 12 verified traps
+python3 benchmarks/make_tasks_v3.py      # 13 multi-file fixtures, 13 verified traps
 python3 benchmarks/gate_tasks_v3.py      # proves each one traps. no model, $0
 
 python3 benchmarks/harness.py --tier v3 --runs 2 --model claude-haiku-4-5
