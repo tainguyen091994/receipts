@@ -82,7 +82,16 @@ def main() -> int:
     # markdown file keeps this to one copy step)
     write(".clinerules", b)
 
-    print("done. 7 adapters generated.")
+    # Roo Code (reads .roo/rules/*.mdc — same .mdc frontmatter spec as Cursor)
+    write(
+        "roo-receipts.mdc",
+        "---\n"
+        "description: Receipts - no claim without the receipt\n"
+        "alwaysApply: true\n"
+        f"---\n\n{b}",
+    )
+
+    print("done. 8 adapters generated.")
     return 0
 
 
