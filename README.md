@@ -326,7 +326,9 @@ Always-on, in `.claude/settings.json`:
 | Gemini CLI | `adapters/GEMINI.md` | `GEMINI.md` |
 | opencode | `adapters/opencode.json` | merge into `opencode.json` |
 | Cline | `adapters/.clinerules` | `.clinerules` |
+| Zed | `adapters/.rules` | `.rules` |
 | Roo Code | `adapters/roo-receipts.mdc` | `.roo/rules/receipts.mdc` |
+| Kilo Code | `adapters/kilo-receipts.md` | `.kilo/rules/receipts.md` + register in `kilo.jsonc` |
 
 Details in [`adapters/INSTALL.md`](adapters/INSTALL.md).
 
