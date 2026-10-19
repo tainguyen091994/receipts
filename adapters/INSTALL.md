@@ -13,7 +13,10 @@ files — edit the skill and run `python3 scripts/build_adapters.py`.
 | Gemini CLI | `adapters/GEMINI.md` | `GEMINI.md` in your project root |
 | opencode | `adapters/opencode.json` | merge into your `opencode.json` |
 | Cline | `adapters/.clinerules` | `.clinerules` in your project root |
+| Zed | `adapters/.rules` | `.rules` in your project root |
 | Roo Code | `adapters/roo-receipts.mdc` | `.roo/rules/receipts.mdc` |
+| Kilo Code | `adapters/kilo-receipts.md` | `.kilo/rules/receipts.md`, registered in `kilo.jsonc` `instructions` |
+| Aider | `adapters/aider-receipts.md` | project root as `aider-receipts.md`, plus `read: aider-receipts.md` in `.aider.conf.yml` |
 | Anything else | `adapters/AGENTS.md` | paste into that tool's system prompt or rules file |
 
 ## Claude Code

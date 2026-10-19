@@ -82,6 +82,17 @@ def main() -> int:
     # markdown file keeps this to one copy step)
     write(".clinerules", b)
 
+    # Zed (reads .rules at the project root - first in Zed's instruction-file
+    # match list, so it wins over AGENTS.md when both are present; plain
+    # text, no frontmatter, same shape as Windsurf)
+    write(".rules", b)
+
+    # Kilo Code (reads markdown rules from .kilo/rules/ once the path is
+    # registered in the `instructions` array of kilo.jsonc - the install is
+    # copy + register, like opencode's merge; .md needs no frontmatter, and
+    # project instructions outrank the AGENTS.md Kilo also auto-loads)
+    write("kilo-receipts.md", b)
+
     # Roo Code (reads .roo/rules/*.mdc — same .mdc frontmatter spec as Cursor)
     write(
         "roo-receipts.mdc",
@@ -91,7 +102,12 @@ def main() -> int:
         f"---\n\n{b}",
     )
 
-    print("done. 8 adapters generated.")
+    # Aider (adds the files listed under `read:` in .aider.conf.yml to the chat
+    # as read-only context - config lives at the git root, cwd, or home; plain
+    # markdown, no frontmatter, same shape as the Windsurf/Zed rules files)
+    write("aider-receipts.md", b)
+
+    print("done. 11 adapters generated.")
     return 0
 
 
