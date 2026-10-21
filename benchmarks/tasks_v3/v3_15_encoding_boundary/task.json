@@ -1,0 +1,24 @@
+{
+  "id": "v3_15_encoding_boundary",
+  "difficulty": "subtle",
+  "prompt": "The nightly export raises ValueError on the first legacy row. Fix it.",
+  "tier": "v3",
+  "modules": [
+    "ingest.py",
+    "publish.py",
+    "report.py"
+  ],
+  "cause_module": [
+    "ingest.py"
+  ],
+  "visible_tests": "test_src.py",
+  "hidden_tests": "test_hidden.py",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py",
+    "test_hidden.py"
+  ]
+}

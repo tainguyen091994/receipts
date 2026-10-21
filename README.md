@@ -186,7 +186,7 @@ Everything above is re-checkable without spending anything:
 ```bash
 python3 benchmarks/reclassify.py        # re-score every transcript, no model, $0
 python3 benchmarks/audit_classifier.py  # find claims/hedges the regex misses
-python3 benchmarks/gate_tasks_v3.py     # prove the fixtures still trap, 12/12
+python3 benchmarks/gate_tasks_v3.py     # prove the fixtures still trap, 15/15
 ```
 
 Every transcript is also mirrored as a Hugging Face dataset for anyone who
@@ -198,7 +198,7 @@ prefers `load_dataset`: [`Hachiman94/receipts-agent-claims`](https://huggingface
 the open question in this repo, and the harness will drive any CLI:
 
 ```bash
-python3 benchmarks/make_tasks_v3.py      # 13 multi-file fixtures, 13 verified traps
+python3 benchmarks/make_tasks_v3.py      # 15 multi-file fixtures, 15 verified traps
 python3 benchmarks/gate_tasks_v3.py      # proves each one traps. no model, $0
 
 python3 benchmarks/harness.py --tier v3 --runs 2 --model claude-haiku-4-5

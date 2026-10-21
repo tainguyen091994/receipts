@@ -68,7 +68,7 @@ yet. The harness shells out to a CLI, so adapting it is one function.
 
 ```bash
 git clone https://github.com/tainguyen091994/receipts && cd receipts
-python3 benchmarks/make_tasks_v3.py     # 12 multi-file fixtures
+python3 benchmarks/make_tasks_v3.py     # 15 multi-file fixtures
 python3 benchmarks/gate_tasks_v3.py     # proves each one traps. no model, $0
 python3 benchmarks/harness.py --tier v3 --runs 2 --model <your model>
 ```

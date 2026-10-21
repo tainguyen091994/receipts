@@ -1,0 +1,24 @@
+{
+  "id": "v3_14_cache_eviction_gap",
+  "difficulty": "subtle",
+  "prompt": "Repeating a search keeps returning the row deleted a minute ago. Fix it.",
+  "tier": "v3",
+  "modules": [
+    "index.py",
+    "search.py",
+    "store.py"
+  ],
+  "cause_module": [
+    "store.py"
+  ],
+  "visible_tests": "test_src.py",
+  "hidden_tests": "test_hidden.py",
+  "test_cmd": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "test_src.py",
+    "test_hidden.py"
+  ]
+}

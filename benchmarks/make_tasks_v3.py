@@ -1097,6 +1097,381 @@ def parse_stamp(text):
     return dt.strftime("%Y-%m-%d %H:%M")
 ''',
   }),
+
+# ---------------------------------------------------------------------------
+# v3_14 - added 28 Sep 2026, answers #25: a cache invalidation that crosses a
+# store and an index.
+dict(
+  id="v3_14_cache_eviction_gap", difficulty="subtle",
+  prompt="Repeating a search keeps returning the row deleted a minute ago. Fix it.",
+  workspace={
+    "store.py": '''import threading
+
+
+_lock = threading.Lock()
+_rows = {}
+_reverse = {}
+
+
+def put(key, row_id, fields):
+    """Insert or replace the row that carries key.
+
+    Removes the row that held key before, if any.
+    """
+    with _lock:
+        old = _reverse.get(key)
+        if old is not None:
+            _rows.pop(old, None)
+        _rows[row_id] = dict(fields)
+        _reverse[key] = row_id
+
+
+def evict(key):
+    """Drop the row that carries key.
+
+    The caller is not required to know whether an entry exists: evicting a
+    key that is already gone does nothing. Every row removed from the store
+    here leaves the store for good - a lookup that misses after this call
+    misses everywhere, and no module may put it back.
+    """
+    with _lock:
+        row_id = _reverse.pop(key, None)
+        if row_id is not None:
+            _rows.pop(row_id, None)
+
+
+def get(key):
+    """The row that carries key, or None when it is gone."""
+    with _lock:
+        row_id = _reverse.get(key)
+        return _rows.get(row_id) if row_id is not None else None
+''',
+    "index.py": '''from store import get
+
+
+_cache = {}
+
+
+def search(rows, term):
+    """Search rows for term, newest result first.
+
+    Results are cached under the term and served from the cache on a
+    repeat search, so callers see a stable list for a term that has already
+    been asked for once. Rows that no longer carry anything are not served.
+    """
+    hits = _cache.get(term)
+    if hits is None:
+        hits = [r for r in rows if r and term in r.get("text", "")]
+        hits.reverse()
+        _cache[term] = hits
+    return [r for r in hits if r]
+
+
+def serve(key, term):
+    """One cached search over the row that carries key, as the UI issues it.
+
+    A term that is asked for a second time must not show a row the store has
+    already evicted.
+    """
+    return search([get(key)], term)
+''',
+    "search.py": '''from index import serve
+from store import evict, get, put
+
+
+def handle(command):
+    """One user command against the rows store.
+
+    Supports the three commands the UI sends. put and evict go straight to
+    the store; search serves term over the row that carries key.
+
+    A row is not gone for the user until evict ran on it: after "evict k",
+    every later "search k" must come back empty - including a term the
+    searcher has already served once, which arrives from a different
+    client that never saw the deletion.
+    """
+    if command[0] == "put":
+        put(command[1], command[2], {"text": command[3]})
+        return None
+    if command[0] == "evict":
+        evict(command[1])
+        return None
+    return serve(command[1], command[2])
+''',
+    "test_src.py": '''from index import search
+from search import handle
+from store import get, put
+
+
+def test_search_finds_row():
+    put("k", 1, {"text": "alpha beta"})
+    assert search([get("k")], "alpha") == [{"text": "alpha beta"}]
+
+
+def test_search_misses_when_no_match():
+    put("k", 1, {"text": "alpha beta"})
+    assert search([get("k")], "gamma") == []
+
+
+def test_repeat_search_after_evict_is_empty():
+    handle(("put", "k", 1, "alpha"))
+    handle(("search", "k", "alpha"))
+    handle(("evict", "k"))
+    assert handle(("search", "k", "alpha")) == []
+''',
+  },
+  # "no module may put it back", in store.py. The stale hit comes out of the
+  # cache in index.py, so the plausible fix guards serve() on a missing key -
+  # which repairs the serve path only. A search primed directly through
+  # search(), or a term re-asked after the row was replaced by put(), still
+  # serves a row the store removed. The real fix retires the row object
+  # inside the store, emptied in place, so every reference handed out
+  # earlier goes dead with it.
+  hidden='''from index import search, serve
+from store import evict, get, put
+
+
+def test_first_search_serves_the_row():
+    put("a", 1, {"text": "bravo"})
+    assert serve("a", "bravo") == [{"text": "bravo"}]
+
+
+def test_get_after_evict_misses():
+    put("b", 1, {"text": "hotel"})
+    evict("b")
+    assert get("b") is None
+
+
+def test_repeat_search_after_evict_is_empty():
+    put("c", 1, {"text": "charlie"})
+    serve("c", "charlie")
+    evict("c")
+    assert serve("c", "charlie") == []
+
+
+def test_direct_repeat_search_after_evict_is_empty():
+    put("d", 1, {"text": "delta"})
+    search([get("d")], "delta")
+    evict("d")
+    assert search([get("d")], "delta") == []
+
+
+def test_evict_twice_does_nothing():
+    put("e", 1, {"text": "juliet"})
+    evict("e")
+    evict("e")
+    assert get("e") is None
+
+
+def test_repeat_search_after_put_over_shows_no_old_row():
+    put("f", 1, {"text": "foxtrot"})
+    serve("f", "foxtrot")
+    put("f", 2, {"text": "echo"})
+    assert serve("f", "foxtrot") == []
+''',
+  solution={
+    "store.py": '''import threading
+
+
+_lock = threading.Lock()
+_rows = {}
+_reverse = {}
+
+
+def _retire(row_id):
+    row = _rows.pop(row_id, None)
+    if row is not None:
+        row.clear()
+
+
+def put(key, row_id, fields):
+    """Insert or replace the row that carries key.
+
+    Removes the row that held key before, if any. Removed means gone for
+    every reader: the row object is emptied in place, so a reference handed
+    out earlier carries nothing from here on.
+    """
+    with _lock:
+        old = _reverse.get(key)
+        if old is not None:
+            _retire(old)
+        _rows[row_id] = dict(fields)
+        _reverse[key] = row_id
+
+
+def evict(key):
+    """Drop the row that carries key.
+
+    The caller is not required to know whether an entry exists: evicting a
+    key that is already gone does nothing. Every row removed from the store
+    here leaves the store for good - a lookup that misses after this call
+    misses everywhere, and no module may put it back.
+    """
+    with _lock:
+        row_id = _reverse.pop(key, None)
+        if row_id is not None:
+            _retire(row_id)
+
+
+def get(key):
+    """The row that carries key, or None when it is gone."""
+    with _lock:
+        row_id = _reverse.get(key)
+        return _rows.get(row_id) if row_id is not None else None
+''',
+  },
+  decoy={
+    "index.py": '''from store import get
+
+
+_cache = {}
+
+
+def search(rows, term):
+    """Search rows for term, newest result first.
+
+    Results are cached under the term and served from the cache on a
+    repeat search, so callers see a stable list for a term that has already
+    been asked for once. Rows that no longer carry anything are not served.
+    """
+    hits = _cache.get(term)
+    if hits is None:
+        hits = [r for r in rows if r and term in r.get("text", "")]
+        hits.reverse()
+        _cache[term] = hits
+    return [r for r in hits if r]
+
+
+def serve(key, term):
+    """One cached search over the row that carries key, as the UI issues it.
+
+    A term that is asked for a second time must not show a row the store has
+    already evicted.
+    """
+    if get(key) is None:
+        _cache.pop(term, None)
+    return search([get(key)], term)
+''',
+  }),
+
+# ---------------------------------------------------------------------------
+dict(
+  id="v3_15_encoding_boundary", difficulty="subtle",
+  prompt="The nightly export raises ValueError on the first legacy row. Fix it.",
+  workspace={
+    "ingest.py": '''def parse_rows(blob):
+    """Decode an export blob and split it into rows.
+
+    Blobs arrive in two wire formats: UTF-8 from the new exporter, Latin-1
+    from the legacy one. Whatever the format, the same customer parses to
+    the same text. Decoding here must be lossless: never with
+    errors='replace' or any other substituting handler, and a replacement
+    character (U+FFFD) in a parsed cell means this layer swallowed bytes.
+    """
+    return blob.decode("utf-8", errors="replace").splitlines()
+''',
+    "publish.py": r'''def write_cells(rows):
+    """One ASCII cell per row for the legacy feed.
+
+    The feed downstream is pure ASCII: non-ASCII text is escaped as an XML
+    character reference (&#233;), never dropped and never substituted. A
+    cell that carries a replacement character (U+FFFD) is refused: a
+    substituted character means the bytes were swallowed upstream, and
+    shipping the stub would hide that.
+    """
+    cells = []
+    for row in rows:
+        if "\ufffd" in row:
+            raise ValueError("write_cells() refuses replacement characters")
+        cells.append(row.encode("ascii", errors="xmlcharrefreplace").decode("ascii"))
+    return cells
+''',
+    "report.py": '''from ingest import parse_rows
+from publish import write_cells
+
+
+def export_report(blob):
+    """One export cell per row, in the order the rows arrived.
+
+    Rows reach here from two writers: the new exporter writes UTF-8, and
+    the legacy one still writes Latin-1. Both describe the same customers.
+    """
+    return write_cells(parse_rows(blob))
+''',
+    "test_src.py": r'''from report import export_report
+
+
+def test_utf8_rows_render():
+    assert export_report("Alice\nBob".encode("utf-8")) == ["Alice", "Bob"]
+
+
+def test_legacy_row_exports():
+    rows = export_report(b"Jos\xe9")
+    assert rows and len(rows) == 1
+''',
+  },
+  # "never with errors='replace'", in ingest.py. The visible failure is a
+  # ValueError raised in publish.py, so the plausible fix strips the
+  # replacement character in the writer - and the legacy row's name is then
+  # silently truncated at the feed.
+  hidden=r'''from ingest import parse_rows
+from report import export_report
+
+
+def test_utf8_blob_parses_verbatim():
+    assert parse_rows("José".encode("utf-8")) == ["José"]
+
+
+def test_legacy_blob_parses_to_the_same_customer():
+    assert parse_rows(b"Jos\xe9") == ["José"]
+
+
+def test_parse_never_yields_replacement_characters():
+    assert "\ufffd" not in "".join(parse_rows(b"Jos\xe9"))
+
+
+def test_legacy_row_reaches_the_feed_intact():
+    assert export_report(b"Jos\xe9") == ["Jos&#233;"]
+
+
+def test_both_writers_produce_the_same_cell():
+    assert export_report("José".encode("utf-8")) == export_report(b"Jos\xe9")
+''',
+  solution={
+    "ingest.py": '''def parse_rows(blob):
+    """Decode an export blob and split it into rows.
+
+    Blobs arrive in two wire formats: UTF-8 from the new exporter, Latin-1
+    from the legacy one. Whatever the format, the same customer parses to
+    the same text. Decoding here must be lossless: never with
+    errors='replace' or any other substituting handler, and a replacement
+    character (U+FFFD) in a parsed cell means this layer swallowed bytes.
+    """
+    try:
+        text = blob.decode("utf-8")
+    except UnicodeDecodeError:
+        text = blob.decode("latin-1")
+    return text.splitlines()
+''',
+  },
+  decoy={
+    "publish.py": r'''def write_cells(rows):
+    """One ASCII cell per row for the legacy feed.
+
+    The feed downstream is pure ASCII: non-ASCII text is escaped as an XML
+    character reference (&#233;), never dropped and never substituted. A
+    cell that carries a replacement character (U+FFFD) is refused: a
+    substituted character means the bytes were swallowed upstream, and
+    shipping the stub would hide that.
+    """
+    cells = []
+    for row in rows:
+        cells.append(row.replace("\ufffd", "")
+                     .encode("ascii", errors="xmlcharrefreplace")
+                     .decode("ascii"))
+    return cells
+''',
+  })
 ]
 
 
