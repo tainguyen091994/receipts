@@ -82,6 +82,11 @@ def main() -> int:
     # markdown file keeps this to one copy step)
     write(".clinerules", b)
 
+    # Zed (reads .rules at the project root - first in Zed's instruction-file
+    # match list, so it wins over AGENTS.md when both are present; plain
+    # text, no frontmatter, same shape as Windsurf)
+    write(".rules", b)
+
     # Roo Code (reads .roo/rules/*.mdc — same .mdc frontmatter spec as Cursor)
     write(
         "roo-receipts.mdc",
@@ -91,7 +96,7 @@ def main() -> int:
         f"---\n\n{b}",
     )
 
-    print("done. 8 adapters generated.")
+    print("done. 9 adapters generated.")
     return 0
 
 
